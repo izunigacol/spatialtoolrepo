@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css"/>
   <script src="https://js.arcgis.com/4.29/"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style> #mapView { width: 100%; height: 100%; min-height: 100px; } </style>
 
   <style>
     :root {
@@ -318,6 +319,7 @@
 </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
 require([
   "esri/Map",
   "esri/views/MapView",
@@ -358,7 +360,7 @@ require([
     map: map,
     center: [-118.2114, 33.9303],
     zoom: 14,
-    ui: { components: ["zoom", "compass"] }
+    ui: { components: [] }   // avoid Calcite injection errors in iframe/GitHub Pages
   });
 
   // Track view readiness — all goTo calls must go through safeGoTo
@@ -581,22 +583,49 @@ require([
 
     collection.forEach(entry => {
       entry.features.forEach(f => {
-        // Build GeoJSON feature from ArcGIS feature
-        const coords = [];
-        const paths = f.geometry.paths || [f.geometry.paths];
-        f.geometry.paths.forEach(path => {
-          path.forEach(pt => coords.push(pt));
+
+        // ── Geometry: safely flatten all paths into one LineString ──
+        let coords = [];
+        try {
+          const paths = f.geometry.paths;
+          if (Array.isArray(paths) && paths.length > 0) {
+            // Concatenate all paths — handles multi-path geometries
+            paths.forEach(path => {
+              path.forEach(pt => {
+                // pt is [x, y] or [x, y, z] — keep only [lon, lat]
+                if (Array.isArray(pt) && pt.length >= 2) {
+                  coords.push([pt[0], pt[1]]);
+                }
+              });
+            });
+          }
+        } catch(e) {
+          console.warn("Skipping feature with bad geometry", e);
+          return; // skip this feature
+        }
+
+        if (coords.length < 2) return; // skip degenerate lines
+
+        // ── Properties: strip nulls and internal ArcGIS fields ──
+        const rawAttrs = f.attributes || {};
+        const cleanProps = {};
+        Object.entries(rawAttrs).forEach(([k, v]) => {
+          // Skip internal ArcGIS fields and nulls
+          if (v === null || v === undefined) return;
+          if (k === "Shape__Length" || k === "Shape.STLength()") return;
+          cleanProps[k] = v;
         });
+
+        // Add collection metadata
+        cleanProps.StreetName  = entry.street;
+        cleanProps.FromCross   = entry.from  || "";
+        cleanProps.ToCross     = entry.to    || "";
+        cleanProps.AddrFrom    = entry.minAddr;
+        cleanProps.AddrTo      = entry.maxAddr;
 
         allFeatures.push({
           type: "Feature",
-          properties: {
-            ...f.attributes,
-            _collection_entry: entry.id,
-            _street:    entry.street,
-            _from_cross: entry.from,
-            _to_cross:   entry.to,
-          },
+          properties: cleanProps,
           geometry: {
             type: "LineString",
             coordinates: coords
@@ -605,8 +634,13 @@ require([
       });
     });
 
+    // ── Build valid GeoJSON with explicit CRS for ArcGIS Online ──
     const geojson = {
       type: "FeatureCollection",
+      crs: {
+        type: "name",
+        properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" }
+      },
       features: allFeatures
     };
 
@@ -709,6 +743,7 @@ require([
   }
 
 });
+}); // DOMContentLoaded
 </script>
 </body>
 </html>
