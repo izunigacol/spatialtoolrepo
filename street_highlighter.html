@@ -3,28 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Street Segment Highlighter</title>
+  <title>Street Segment Builder</title>
 
-  <!-- ArcGIS Maps SDK -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css"/>
   <script src="https://js.arcgis.com/4.29/"></script>
-
-  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
 
   <style>
     :root {
-      --bg:        #0f1117;
-      --panel:     #181c27;
-      --border:    #2a2f3f;
-      --accent:    #f5c842;
-      --accent2:   #ff6b35;
-      --text:      #e8eaf0;
-      --muted:     #6b7280;
-      --highlight: #f5c842;
-      --input-bg:  #0f1117;
-      --success:   #34d399;
-      --error:     #f87171;
+      --bg:       #0f1117;
+      --panel:    #181c27;
+      --border:   #2a2f3f;
+      --accent:   #f5c842;
+      --accent2:  #ff6b35;
+      --text:     #e8eaf0;
+      --muted:    #6b7280;
+      --success:  #34d399;
+      --error:    #f87171;
+      --input-bg: #0f1117;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -39,7 +35,6 @@
       overflow: hidden;
     }
 
-    /* ── HEADER ── */
     header {
       background: var(--panel);
       border-bottom: 1px solid var(--border);
@@ -48,256 +43,184 @@
       align-items: center;
       gap: 12px;
       flex-shrink: 0;
-      z-index: 10;
     }
 
     .logo-mark {
-      width: 32px;
-      height: 32px;
+      width: 30px; height: 30px;
       background: var(--accent);
-      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
       flex-shrink: 0;
     }
 
-    header h1 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text);
-    }
+    header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    header span { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-left: 4px; }
 
-    header span {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-      margin-left: 4px;
-    }
-
-    /* ── LAYOUT ── */
-    .layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
+    .layout { display: flex; flex: 1; overflow: hidden; }
 
     /* ── SIDEBAR ── */
     .sidebar {
-      width: 300px;
-      flex-shrink: 0;
+      width: 310px; flex-shrink: 0;
       background: var(--panel);
       border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
+      display: flex; flex-direction: column;
+      overflow: hidden;
     }
 
-    .sidebar-section {
-      padding: 18px 16px;
-      border-bottom: 1px solid var(--border);
-    }
-
+    .sidebar-top { overflow-y: auto; flex-shrink: 0; }
+    .sidebar-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
     .section-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 12px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
     }
 
-    .field-group {
-      margin-bottom: 12px;
-    }
-
+    .field-group { margin-bottom: 10px; }
     .field-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 5px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 4px; display: flex; align-items: center; gap: 5px;
     }
-
-    .field-label .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      display: inline-block;
-    }
-
-    .field-label .dot.orange { background: var(--accent2); }
-    .field-label .dot.green  { background: var(--success); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+    .dot.orange { background: var(--accent2); }
+    .dot.green  { background: var(--success); }
 
     input[type="text"] {
-      width: 100%;
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      font-family: 'DM Mono', monospace;
-      font-size: 13px;
-      padding: 8px 10px;
-      outline: none;
+      width: 100%; background: var(--input-bg);
+      border: 1px solid var(--border); border-radius: 4px;
+      color: var(--text); font-family: 'DM Mono', monospace;
+      font-size: 13px; padding: 7px 10px; outline: none;
       transition: border-color 0.15s;
     }
-
     input[type="text"]::placeholder { color: var(--muted); }
     input[type="text"]:focus { border-color: var(--accent); }
 
-    .autocomplete-wrapper {
-      position: relative;
-    }
-
+    .autocomplete-wrapper { position: relative; }
     .autocomplete-list {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: #1e2230;
-      border: 1px solid var(--border);
-      border-top: none;
-      border-radius: 0 0 4px 4px;
-      max-height: 160px;
-      overflow-y: auto;
-      z-index: 100;
-      display: none;
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: #1e2230; border: 1px solid var(--border);
+      border-top: none; border-radius: 0 0 4px 4px;
+      max-height: 150px; overflow-y: auto; z-index: 200; display: none;
     }
-
     .autocomplete-list.open { display: block; }
-
     .autocomplete-item {
-      padding: 7px 10px;
-      font-family: 'DM Mono', monospace;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background 0.1s;
+      padding: 7px 10px; font-family: 'DM Mono', monospace;
+      font-size: 12px; cursor: pointer; transition: background 0.1s;
     }
+    .autocomplete-item:hover { background: rgba(245,200,66,0.15); color: var(--accent); }
 
-    .autocomplete-item:hover,
-    .autocomplete-item.selected {
-      background: rgba(245,200,66,0.15);
-      color: var(--accent);
-    }
+    .btn-row { display: flex; gap: 6px; margin-top: 4px; }
 
-    /* ── BUTTON ── */
-    .btn-highlight {
-      width: 100%;
-      background: var(--accent);
-      color: #0f1117;
-      border: none;
-      border-radius: 4px;
+    .btn {
+      flex: 1; border: none; border-radius: 4px;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 11px;
-      cursor: pointer;
+      font-size: 14px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 9px 6px; cursor: pointer;
       transition: background 0.15s, transform 0.1s;
-      margin-top: 4px;
     }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
 
-    .btn-highlight:hover { background: #ffd84d; transform: translateY(-1px); }
-    .btn-highlight:active { transform: translateY(0); }
-    .btn-highlight:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--accent); color: #0f1117; }
+    .btn-primary:hover:not(:disabled) { background: #ffd84d; }
 
-    .btn-clear {
-      width: 100%;
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 8px;
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-      margin-top: 6px;
-    }
+    .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--text); color: var(--text); }
 
-    .btn-clear:hover { border-color: var(--error); color: var(--error); }
+    .btn-add { background: rgba(52,211,153,0.15); color: var(--success); border: 1px solid rgba(52,211,153,0.3); }
+    .btn-add:hover:not(:disabled) { background: rgba(52,211,153,0.25); }
 
-    /* ── STATUS ── */
     .status-box {
-      padding: 14px 16px;
-      font-family: 'DM Mono', monospace;
-      font-size: 12px;
-      min-height: 52px;
-      border-bottom: 1px solid var(--border);
+      padding: 10px 16px; font-family: 'DM Mono', monospace;
+      font-size: 12px; border-bottom: 1px solid var(--border); min-height: 40px;
     }
-
     .status-idle    { color: var(--muted); }
     .status-loading { color: var(--accent); }
     .status-success { color: var(--success); }
     .status-error   { color: var(--error); }
 
-    .status-box .status-icon { margin-right: 6px; }
-
-    /* ── RESULTS ── */
-    .results-section {
-      padding: 14px 16px;
-      flex: 1;
+    /* ── COLLECTION LIST ── */
+    .collection-header {
+      padding: 10px 16px 6px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
 
-    .result-card {
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 10px 12px;
-      margin-bottom: 8px;
-      font-size: 12px;
-      border-left: 3px solid var(--accent);
+    .collection-count {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      background: var(--accent); color: #0f1117;
+      padding: 2px 7px; border-radius: 10px; font-weight: 500;
+    }
+
+    .collection-list {
+      flex: 1; overflow-y: auto; padding: 8px 0;
+    }
+
+    .collection-item {
+      padding: 8px 16px; border-bottom: 1px solid rgba(42,47,63,0.5);
+      display: flex; align-items: flex-start; gap: 8px;
       animation: fadeIn 0.2s ease;
+      transition: background 0.1s;
+    }
+    .collection-item:hover { background: rgba(245,200,66,0.04); }
+
+    @keyframes fadeIn { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform: none; } }
+
+    .item-color-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0; margin-top: 3px;
     }
 
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-
-    .result-street {
-      font-family: 'DM Mono', monospace;
-      font-weight: 500;
-      color: var(--accent);
-      font-size: 13px;
-      margin-bottom: 4px;
+    .item-info { flex: 1; min-width: 0; }
+    .item-street {
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      color: var(--accent); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .item-cross {
+      font-size: 11px; color: var(--muted); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .item-seg-count {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); white-space: nowrap;
     }
 
-    .result-meta {
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.6;
+    .btn-remove {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 16px; padding: 0 2px;
+      line-height: 1; transition: color 0.1s; flex-shrink: 0;
+    }
+    .btn-remove:hover { color: var(--error); }
+
+    .empty-state {
+      padding: 24px 16px; text-align: center;
+      color: var(--muted); font-size: 12px; font-family: 'DM Mono', monospace;
+      line-height: 1.8;
     }
 
-    .result-meta strong { color: var(--text); }
-
-    /* ── CONFIG NOTICE ── */
-    .config-notice {
-      background: rgba(255,107,53,0.1);
-      border: 1px solid rgba(255,107,53,0.3);
-      border-radius: 4px;
-      padding: 10px 12px;
-      font-size: 12px;
-      font-family: 'DM Mono', monospace;
-      color: var(--accent2);
-      line-height: 1.6;
-      margin-bottom: 12px;
+    /* ── EXPORT FOOTER ── */
+    .export-footer {
+      padding: 12px 16px; border-top: 1px solid var(--border);
+      flex-shrink: 0; background: var(--panel);
     }
 
-    .config-notice a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+    .export-footer .btn-export {
+      width: 100%; background: var(--accent2); color: #fff;
+      border: none; border-radius: 4px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 11px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .export-footer .btn-export:hover:not(:disabled) { background: #ff835a; }
+    .export-footer .btn-export:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    /* ── MAP ── */
-    #mapView {
-      flex: 1;
-      background: #0a0d14;
+    .export-footer .export-meta {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); text-align: center; margin-top: 6px;
     }
 
-    /* scrollbar */
+    #mapView { flex: 1; background: #0a0d14; }
+
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -308,78 +231,90 @@
 <header>
   <div class="logo-mark"></div>
   <div>
-    <h1>Street Segment Highlighter <span>// Lynwood, CA</span></h1>
+    <h1>Segment Builder <span>// Lynwood, CA</span></h1>
   </div>
 </header>
 
 <div class="layout">
-
-  <!-- ── SIDEBAR ── -->
   <div class="sidebar">
+    <div class="sidebar-top">
 
-    <!-- CONFIG SECTION -->
-    <div class="sidebar-section" id="configSection">
-      <div class="section-label">⚙ Configuration</div>
-      <div class="config-notice" id="configNotice">
-        Set your Feature Layer URL below to connect to your ArcGIS Online layer.
+      <!-- CONNECT -->
+      <div class="sidebar-section">
+        <div class="section-label">⚙ Layer Connection</div>
+        <div class="field-group">
+          <div class="field-label">Feature Layer URL</div>
+          <input type="text" id="layerUrl" placeholder="https://services.arcgis.com/.../FeatureServer/0"/>
+        </div>
+        <button class="btn btn-primary" onclick="connectLayer()" id="btnConnect">Connect Layer</button>
       </div>
-      <div class="field-group">
-        <div class="field-label">Feature Layer URL</div>
-        <input type="text" id="layerUrl" placeholder="https://services.arcgis.com/.../FeatureServer/0"
-          value=""/>
+
+      <!-- SEARCH -->
+      <div class="sidebar-section">
+        <div class="section-label">🔍 Find Segment</div>
+
+        <div class="field-group">
+          <div class="field-label"><span class="dot"></span> Street Name</div>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="streetInput" placeholder="e.g. Mulford Ave"
+              oninput="onAutocomplete('streetInput','streetList',streetNames)" autocomplete="off"/>
+            <div class="autocomplete-list" id="streetList"></div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label"><span class="dot orange"></span> From Cross Street</div>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="fromInput" placeholder="e.g. California Ave"
+              oninput="onAutocomplete('fromInput','fromList',allCrossStreets)" autocomplete="off"/>
+            <div class="autocomplete-list" id="fromList"></div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label"><span class="dot green"></span> To Cross Street</div>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="toInput" placeholder="e.g. Birch St"
+              oninput="onAutocomplete('toInput','toList',allCrossStreets)" autocomplete="off"/>
+            <div class="autocomplete-list" id="toList"></div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="previewSegment()" id="btnPreview" disabled>Preview</button>
+          <button class="btn btn-add"     onclick="addToCollection()" id="btnAdd" disabled>+ Add to List</button>
+          <button class="btn btn-secondary" onclick="clearSearch()">Clear</button>
+        </div>
       </div>
-      <button class="btn-highlight" onclick="connectLayer()" id="btnConnect">Connect Layer</button>
+
+      <!-- STATUS -->
+      <div class="status-box">
+        <div id="statusMsg" class="status-idle">○ Connect a layer to begin</div>
+      </div>
+
     </div>
 
-    <!-- SEARCH SECTION -->
-    <div class="sidebar-section">
-      <div class="section-label">🔍 Highlight Segment</div>
+    <!-- COLLECTION -->
+    <div class="collection-header">
+      <div class="section-label" style="margin-bottom:0">Segment Collection</div>
+      <div class="collection-count" id="collectionCount">0</div>
+    </div>
 
-      <div class="field-group">
-        <div class="field-label"><span class="dot"></span> Street Name</div>
-        <div class="autocomplete-wrapper">
-          <input type="text" id="streetInput" placeholder="e.g. Mulford Ave" oninput="onStreetInput()" autocomplete="off"/>
-          <div class="autocomplete-list" id="streetList"></div>
-        </div>
-      </div>
+    <div class="collection-list" id="collectionList">
+      <div class="empty-state">No segments added yet.<br>Search and preview a segment,<br>then click "+ Add to List".</div>
+    </div>
 
-      <div class="field-group">
-        <div class="field-label"><span class="dot orange"></span> From Cross Street</div>
-        <div class="autocomplete-wrapper">
-          <input type="text" id="fromInput" placeholder="e.g. California Ave" oninput="onCrossInput('from')" autocomplete="off"/>
-          <div class="autocomplete-list" id="fromList"></div>
-        </div>
-      </div>
-
-      <div class="field-group">
-        <div class="field-label"><span class="dot green"></span> To Cross Street</div>
-        <div class="autocomplete-wrapper">
-          <input type="text" id="toInput" placeholder="e.g. Birch St" oninput="onCrossInput('to')" autocomplete="off"/>
-          <div class="autocomplete-list" id="toList"></div>
-        </div>
-      </div>
-
-      <button class="btn-highlight" onclick="highlightSegment()" id="btnHighlight" disabled>
-        Highlight Segment
+    <!-- EXPORT -->
+    <div class="export-footer">
+      <button class="btn-export" onclick="exportGeoJSON()" id="btnExport" disabled>
+        ⬇ Export as GeoJSON
       </button>
-      <button class="btn-clear" onclick="clearHighlight()">Clear</button>
+      <div class="export-meta" id="exportMeta">Add segments to enable export</div>
     </div>
-
-    <!-- STATUS -->
-    <div class="status-box">
-      <div id="statusMsg" class="status-idle">
-        <span class="status-icon">○</span> Connect a layer to begin
-      </div>
-    </div>
-
-    <!-- RESULTS -->
-    <div class="results-section" id="resultsSection"></div>
 
   </div>
 
-  <!-- ── MAP ── -->
   <div id="mapView"></div>
-
 </div>
 
 <script>
@@ -389,318 +324,379 @@ require([
   "esri/layers/FeatureLayer",
   "esri/renderers/SimpleRenderer",
   "esri/symbols/SimpleLineSymbol",
-  "esri/geometry/Extent",
-  "esri/core/reactiveUtils"
-], function(Map, MapView, FeatureLayer, SimpleRenderer, SimpleLineSymbol, Extent, reactiveUtils) {
+  "esri/Graphic",
+  "esri/layers/GraphicsLayer"
+], function(Map, MapView, FeatureLayer, SimpleRenderer, SimpleLineSymbol, Graphic, GraphicsLayer) {
 
   // ─── STATE ───────────────────────────────────────────
-  let featureLayer = null;
-  let highlightLayer = null;
-  let streetNames = [];
+  let featureLayer   = null;
+  let previewLayer   = null;        // yellow — current preview
+  let collectionGraphicsLayer = null; // persisted collected segments
+  let streetNames    = [];
   let allCrossStreets = [];
+  let lastPreviewData = null;       // { features, street, from, to, minAddr, maxAddr }
+  let collection     = [];          // [{ id, street, from, to, minAddr, maxAddr, features, color }]
+  let collectionIdCounter = 0;
 
+  // Distinct colors for each collected entry
+  const COLORS = [
+    [245,200,66],   // yellow
+    [255,107,53],   // orange
+    [52,211,153],   // green
+    [99,179,237],   // blue
+    [216,180,254],  // purple
+    [251,146,60],   // amber
+    [167,243,208],  // mint
+    [253,186,116],  // peach
+  ];
+
+  // ─── MAP SETUP ───────────────────────────────────────
   const map = new Map({ basemap: "dark-gray-vector" });
 
   const view = new MapView({
     container: "mapView",
     map: map,
-    center: [-118.2114, 33.9303], // Lynwood, CA
+    center: [-118.2114, 33.9303],
     zoom: 14,
     ui: { components: ["zoom", "compass"] }
   });
 
+  // Graphics layer for collected segments (persistent)
+  collectionGraphicsLayer = new GraphicsLayer();
+  map.add(collectionGraphicsLayer);
+
+  // Graphics layer for preview (temporary)
+  previewLayer = new GraphicsLayer();
+  map.add(previewLayer);
+
   // ─── CONNECT LAYER ───────────────────────────────────
   window.connectLayer = async function() {
     const url = document.getElementById("layerUrl").value.trim();
-    if (!url) { setStatus("error", "Please enter a Feature Layer URL"); return; }
+    if (!url) { setStatus("error", "Enter a Feature Layer URL"); return; }
 
-    setStatus("loading", "Connecting to layer...");
+    setStatus("loading", "Connecting...");
     document.getElementById("btnConnect").disabled = true;
 
     try {
-      // Remove existing layers
       if (featureLayer) map.remove(featureLayer);
-      if (highlightLayer) map.remove(highlightLayer);
 
-      // Base layer — full network, muted style
       featureLayer = new FeatureLayer({
-        url: url,
+        url,
         renderer: new SimpleRenderer({
-          symbol: new SimpleLineSymbol({ color: [80, 90, 110, 0.6], width: 1 })
+          symbol: new SimpleLineSymbol({ color: [80,90,110,0.5], width: 1 })
         }),
-        outFields: ["FullName", "FROM_CROSS", "TO_CROSS", "From_L", "To_L", "OBJECTID"]
+        outFields: ["FullName","FROM_CROSS","TO_CROSS","From_L","To_L","OBJECTID"]
       });
 
-      map.add(featureLayer);
+      map.add(featureLayer, 0); // add beneath graphics layers
       await featureLayer.load();
 
-      setStatus("success", `✓ Connected — ${featureLayer.title || "Layer loaded"}`);
-      document.getElementById("btnHighlight").disabled = false;
+      const ext = await featureLayer.queryExtent();
+      if (ext?.extent) view.goTo(ext.extent.expand(1.1));
+
+      await loadStreetNames();
+
+      document.getElementById("btnPreview").disabled = false;
       document.getElementById("btnConnect").disabled = false;
-
-      // Zoom to layer extent
-      const extent = await featureLayer.queryExtent();
-      if (extent?.extent) view.goTo(extent.extent.expand(1.1));
-
-      // Load street names for autocomplete
-      await loadStreetNames(url);
+      setStatus("success", "✓ Layer connected — start searching");
 
     } catch(e) {
-      setStatus("error", "Connection failed — check the URL");
+      setStatus("error", "Connection failed — check URL");
       document.getElementById("btnConnect").disabled = false;
-      console.error(e);
     }
   };
 
-  // ─── LOAD STREET NAMES ───────────────────────────────
-  async function loadStreetNames(url) {
+  async function loadStreetNames() {
     setStatus("loading", "Loading street names...");
-    try {
-      const query = featureLayer.createQuery();
-      query.where = "FullName IS NOT NULL";
-      query.outFields = ["FullName", "FROM_CROSS", "TO_CROSS"];
-      query.returnDistinctValues = false;
-      query.num = 10000;
+    const query = featureLayer.createQuery();
+    query.where = "FullName IS NOT NULL";
+    query.outFields = ["FullName","FROM_CROSS","TO_CROSS"];
+    query.num = 10000;
 
-      const result = await featureLayer.queryFeatures(query);
+    const result = await featureLayer.queryFeatures(query);
+    const nameSet = new Set(), crossSet = new Set();
 
-      const nameSet = new Set();
-      const crossSet = new Set();
+    result.features.forEach(f => {
+      if (f.attributes.FullName)   nameSet.add(f.attributes.FullName.trim());
+      if (f.attributes.FROM_CROSS) f.attributes.FROM_CROSS.split(",").forEach(s => crossSet.add(s.trim()));
+      if (f.attributes.TO_CROSS)   f.attributes.TO_CROSS.split(",").forEach(s => crossSet.add(s.trim()));
+    });
 
-      result.features.forEach(f => {
-        if (f.attributes.FullName)   nameSet.add(f.attributes.FullName.trim());
-        if (f.attributes.FROM_CROSS) f.attributes.FROM_CROSS.split(",").forEach(s => crossSet.add(s.trim()));
-        if (f.attributes.TO_CROSS)   f.attributes.TO_CROSS.split(",").forEach(s => crossSet.add(s.trim()));
-      });
-
-      streetNames    = [...nameSet].sort();
-      allCrossStreets = [...crossSet].sort();
-
-      setStatus("success", `✓ Ready — ${streetNames.length} streets loaded`);
-    } catch(e) {
-      setStatus("error", "Could not load street names");
-      console.error(e);
-    }
+    window.streetNames     = [...nameSet].sort();
+    window.allCrossStreets = [...crossSet].sort();
+    setStatus("success", `✓ Ready — ${window.streetNames.length} streets loaded`);
   }
 
-  // ─── HIGHLIGHT LOGIC ─────────────────────────────────
-  window.highlightSegment = async function() {
-    const street = document.getElementById("streetInput").value.trim();
-    const from   = document.getElementById("fromInput").value.trim();
-    const to     = document.getElementById("toInput").value.trim();
+  // ─── PREVIEW ─────────────────────────────────────────
+  window.previewSegment = async function() {
+    const street = val("streetInput");
+    const from   = val("fromInput");
+    const to     = val("toInput");
 
-    if (!street) { setStatus("error", "Enter a street name"); return; }
-    if (!from && !to) { setStatus("error", "Enter at least one cross street"); return; }
-    if (!featureLayer) { setStatus("error", "Connect a layer first"); return; }
+    if (!street)        { setStatus("error", "Enter a street name"); return; }
+    if (!from && !to)   { setStatus("error", "Enter at least one cross street"); return; }
+    if (!featureLayer)  { setStatus("error", "Connect a layer first"); return; }
 
-    setStatus("loading", "Querying segments...");
-    document.getElementById("resultsSection").innerHTML = "";
+    setStatus("loading", "Querying...");
+    previewLayer.removeAll();
+    lastPreviewData = null;
+    document.getElementById("btnAdd").disabled = true;
 
     try {
-      // Step 1: Find the boundary segments to get address range
-      const boundaryWhere = buildBoundaryQuery(street, from, to);
-      const boundaryQuery = featureLayer.createQuery();
-      boundaryQuery.where = boundaryWhere;
-      boundaryQuery.outFields = ["FullName", "FROM_CROSS", "TO_CROSS", "From_L", "To_L", "OBJECTID"];
-      boundaryQuery.returnGeometry = true;
+      const { features, minAddr, maxAddr } = await querySegments(street, from, to);
 
-      const boundaryResult = await featureLayer.queryFeatures(boundaryQuery);
-
-      if (boundaryResult.features.length === 0) {
-        setStatus("error", `No segments found for "${street}" at those cross streets`);
+      if (features.length === 0) {
+        setStatus("error", `No segments found — check spelling`);
         return;
       }
 
-      // Get the address range from boundary segments
-      const fromVals = boundaryResult.features.map(f => f.attributes.From_L).filter(Boolean);
-      const toVals   = boundaryResult.features.map(f => f.attributes.To_L).filter(Boolean);
-      const minAddr  = Math.min(...fromVals);
-      const maxAddr  = Math.max(...toVals);
-
-      // Step 2: Get ALL segments in that address range
-      const rangeWhere = `FullName = '${escapeSql(street)}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
-      const rangeQuery = featureLayer.createQuery();
-      rangeQuery.where = rangeWhere;
-      rangeQuery.outFields = ["FullName", "FROM_CROSS", "TO_CROSS", "From_L", "To_L", "OBJECTID"];
-      rangeQuery.returnGeometry = true;
-
-      const rangeResult = await featureLayer.queryFeatures(rangeQuery);
-      const segments = rangeResult.features;
-
-      if (segments.length === 0) {
-        setStatus("error", "No segments found in range");
-        return;
-      }
-
-      // Step 3: Remove old highlight layer, add new one
-      if (highlightLayer) map.remove(highlightLayer);
-
-      const objectIds = segments.map(f => f.attributes.OBJECTID);
-
-      highlightLayer = new FeatureLayer({
-        url: featureLayer.url,
-        definitionExpression: `OBJECTID IN (${objectIds.join(",")})`,
-        renderer: new SimpleRenderer({
-          symbol: new SimpleLineSymbol({
-            color: [245, 200, 66, 1],
-            width: 5,
-            style: "solid"
-          })
-        }),
-        outFields: ["*"]
+      // Draw preview in yellow
+      features.forEach(f => {
+        previewLayer.add(new Graphic({
+          geometry: f.geometry,
+          symbol: new SimpleLineSymbol({ color: [245,200,66,1], width: 5 })
+        }));
       });
 
-      map.add(highlightLayer);
+      // Zoom to preview
+      const extent = features.reduce((e, f) => e ? e.union(f.geometry.extent) : f.geometry.extent, null);
+      if (extent) view.goTo(extent.expand(2.5));
 
-      // Zoom to highlighted segments
-      const extent = segments.reduce((ext, f) => {
-        return ext ? ext.union(f.geometry.extent) : f.geometry.extent;
-      }, null);
-
-      if (extent) view.goTo(extent.expand(2));
-
-      setStatus("success", `✓ ${segments.length} segment${segments.length > 1 ? "s" : ""} highlighted`);
-      renderResults(segments, street, from, to, minAddr, maxAddr);
+      lastPreviewData = { features, street, from, to, minAddr, maxAddr };
+      document.getElementById("btnAdd").disabled = false;
+      setStatus("success", `✓ Preview: ${features.length} segment${features.length > 1 ? "s" : ""} — click "+ Add to List" to keep`);
 
     } catch(e) {
-      setStatus("error", "Query failed — see console");
+      setStatus("error", "Query failed");
       console.error(e);
     }
   };
 
-  function buildBoundaryQuery(street, from, to) {
-    const parts = [`FullName = '${escapeSql(street)}'`];
-    const crossParts = [];
+  // ─── ADD TO COLLECTION ───────────────────────────────
+  window.addToCollection = function() {
+    if (!lastPreviewData) return;
 
-    if (from) {
-      crossParts.push(`FROM_CROSS LIKE '%${escapeSql(from)}%'`);
-      crossParts.push(`TO_CROSS LIKE '%${escapeSql(from)}%'`);
-    }
-    if (to) {
-      crossParts.push(`FROM_CROSS LIKE '%${escapeSql(to)}%'`);
-      crossParts.push(`TO_CROSS LIKE '%${escapeSql(to)}%'`);
-    }
+    const { features, street, from, to, minAddr, maxAddr } = lastPreviewData;
+    const id    = ++collectionIdCounter;
+    const color = COLORS[(id - 1) % COLORS.length];
 
-    if (crossParts.length > 0) {
-      parts.push(`(${crossParts.join(" OR ")})`);
-    }
+    // Draw on persistent collection layer with unique color
+    features.forEach(f => {
+      collectionGraphicsLayer.add(new Graphic({
+        geometry: f.geometry,
+        symbol: new SimpleLineSymbol({ color: [...color, 1], width: 5 }),
+        attributes: { collectionId: id }
+      }));
+    });
 
-    return parts.join(" AND ");
-  }
+    // Clear preview
+    previewLayer.removeAll();
+    lastPreviewData = null;
+    document.getElementById("btnAdd").disabled = true;
 
-  function escapeSql(str) {
-    return str.replace(/'/g, "''");
-  }
+    // Store in collection array
+    collection.push({ id, street, from, to, minAddr, maxAddr, features, color });
+    renderCollectionList();
 
-  // ─── CLEAR ───────────────────────────────────────────
-  window.clearHighlight = function() {
-    if (highlightLayer) { map.remove(highlightLayer); highlightLayer = null; }
+    setStatus("success", `✓ Added — ${collection.length} segment${collection.length > 1 ? "s" : ""} in collection`);
+
+    // Reset inputs for next search
     document.getElementById("streetInput").value = "";
     document.getElementById("fromInput").value = "";
     document.getElementById("toInput").value = "";
-    document.getElementById("resultsSection").innerHTML = "";
-    setStatus("idle", "○ Cleared — ready for new search");
   };
 
-  // ─── AUTOCOMPLETE ────────────────────────────────────
-  window.onStreetInput = function() {
-    const val = document.getElementById("streetInput").value.toLowerCase();
-    showAutocomplete("streetList", streetNames, val, "streetInput");
+  // ─── REMOVE FROM COLLECTION ──────────────────────────
+  window.removeFromCollection = function(id) {
+    collection = collection.filter(c => c.id !== id);
+
+    // Redraw collection graphics layer
+    collectionGraphicsLayer.removeAll();
+    collection.forEach(entry => {
+      entry.features.forEach(f => {
+        collectionGraphicsLayer.add(new Graphic({
+          geometry: f.geometry,
+          symbol: new SimpleLineSymbol({ color: [...entry.color, 1], width: 5 })
+        }));
+      });
+    });
+
+    renderCollectionList();
+    setStatus("idle", `Removed — ${collection.length} segment${collection.length !== 1 ? "s" : ""} remaining`);
   };
 
-  window.onCrossInput = function(which) {
-    const inputId = which === "from" ? "fromInput" : "toInput";
-    const listId  = which === "from" ? "fromList"  : "toList";
-    const val = document.getElementById(inputId).value.toLowerCase();
-    showAutocomplete(listId, allCrossStreets, val, inputId);
-  };
+  function renderCollectionList() {
+    const container = document.getElementById("collectionList");
+    const count     = document.getElementById("collectionCount");
+    const exportBtn = document.getElementById("btnExport");
+    const exportMeta = document.getElementById("exportMeta");
 
-  function showAutocomplete(listId, items, val, inputId) {
-    const list = document.getElementById(listId);
-    if (!val || val.length < 2) { list.classList.remove("open"); return; }
+    count.textContent = collection.length;
+    exportBtn.disabled = collection.length === 0;
 
-    const matches = items.filter(i => i.toLowerCase().includes(val)).slice(0, 8);
-    if (matches.length === 0) { list.classList.remove("open"); return; }
+    if (collection.length === 0) {
+      container.innerHTML = `<div class="empty-state">No segments added yet.<br>Search and preview a segment,<br>then click "+ Add to List".</div>`;
+      exportMeta.textContent = "Add segments to enable export";
+      return;
+    }
 
-    list.innerHTML = matches.map(m =>
-      `<div class="autocomplete-item" onclick="selectItem('${inputId}','${listId}','${m.replace(/'/g,"\\'")}')">
-        ${m}
-      </div>`
-    ).join("");
-    list.classList.add("open");
+    const totalSegs = collection.reduce((n, c) => n + c.features.length, 0);
+    exportMeta.textContent = `${collection.length} entries · ${totalSegs} total segments`;
+
+    container.innerHTML = collection.map(entry => {
+      const [r,g,b] = entry.color;
+      return `
+        <div class="collection-item">
+          <div class="item-color-dot" style="background:rgb(${r},${g},${b})"></div>
+          <div class="item-info">
+            <div class="item-street">${entry.street}</div>
+            <div class="item-cross">
+              ${entry.from || "—"} → ${entry.to || "—"}
+            </div>
+          </div>
+          <div class="item-seg-count">${entry.features.length} seg${entry.features.length > 1 ? "s" : ""}</div>
+          <button class="btn-remove" onclick="removeFromCollection(${entry.id})" title="Remove">×</button>
+        </div>
+      `;
+    }).join("");
   }
 
-  window.selectItem = function(inputId, listId, value) {
+  // ─── EXPORT GEOJSON ──────────────────────────────────
+  window.exportGeoJSON = function() {
+    if (collection.length === 0) return;
+
+    const allFeatures = [];
+
+    collection.forEach(entry => {
+      entry.features.forEach(f => {
+        // Build GeoJSON feature from ArcGIS feature
+        const coords = [];
+        const paths = f.geometry.paths || [f.geometry.paths];
+        f.geometry.paths.forEach(path => {
+          path.forEach(pt => coords.push(pt));
+        });
+
+        allFeatures.push({
+          type: "Feature",
+          properties: {
+            ...f.attributes,
+            _collection_entry: entry.id,
+            _street:    entry.street,
+            _from_cross: entry.from,
+            _to_cross:   entry.to,
+          },
+          geometry: {
+            type: "LineString",
+            coordinates: coords
+          }
+        });
+      });
+    });
+
+    const geojson = {
+      type: "FeatureCollection",
+      features: allFeatures
+    };
+
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = "lynwood_highlighted_segments.geojson";
+    a.click();
+    URL.revokeObjectURL(url);
+
+    setStatus("success", `✓ Exported ${allFeatures.length} segments as GeoJSON`);
+  };
+
+  // ─── CLEAR SEARCH ────────────────────────────────────
+  window.clearSearch = function() {
+    previewLayer.removeAll();
+    lastPreviewData = null;
+    document.getElementById("streetInput").value = "";
+    document.getElementById("fromInput").value = "";
+    document.getElementById("toInput").value = "";
+    document.getElementById("btnAdd").disabled = true;
+    setStatus("idle", "○ Cleared");
+  };
+
+  // ─── QUERY HELPER ────────────────────────────────────
+  async function querySegments(street, from, to) {
+    // Step 1 — find boundary segments
+    const crossParts = [];
+    if (from) {
+      crossParts.push(`FROM_CROSS LIKE '%${esc(from)}%'`);
+      crossParts.push(`TO_CROSS LIKE '%${esc(from)}%'`);
+    }
+    if (to) {
+      crossParts.push(`FROM_CROSS LIKE '%${esc(to)}%'`);
+      crossParts.push(`TO_CROSS LIKE '%${esc(to)}%'`);
+    }
+    const boundaryWhere = `FullName = '${esc(street)}' AND (${crossParts.join(" OR ")})`;
+
+    const bq = featureLayer.createQuery();
+    bq.where = boundaryWhere;
+    bq.outFields = ["From_L","To_L","OBJECTID"];
+    bq.returnGeometry = false;
+
+    const bResult = await featureLayer.queryFeatures(bq);
+    if (bResult.features.length === 0) return { features: [], minAddr: null, maxAddr: null };
+
+    const fromVals = bResult.features.map(f => f.attributes.From_L).filter(v => v != null);
+    const toVals   = bResult.features.map(f => f.attributes.To_L).filter(v => v != null);
+    const minAddr  = Math.min(...fromVals);
+    const maxAddr  = Math.max(...toVals);
+
+    // Step 2 — get all segments in range
+    const rq = featureLayer.createQuery();
+    rq.where = `FullName = '${esc(street)}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
+    rq.outFields = ["FullName","FROM_CROSS","TO_CROSS","From_L","To_L","OBJECTID"];
+    rq.returnGeometry = true;
+
+    const rResult = await featureLayer.queryFeatures(rq);
+    return { features: rResult.features, minAddr, maxAddr };
+  }
+
+  function esc(s) { return s.replace(/'/g, "''"); }
+  function val(id) { return document.getElementById(id).value.trim(); }
+
+  // ─── AUTOCOMPLETE ────────────────────────────────────
+  window.onAutocomplete = function(inputId, listId, items) {
+    const v = document.getElementById(inputId).value.toLowerCase();
+    const list = document.getElementById(listId);
+    if (!v || v.length < 2) { list.classList.remove("open"); return; }
+
+    const matches = items.filter(i => i.toLowerCase().includes(v)).slice(0, 8);
+    if (!matches.length) { list.classList.remove("open"); return; }
+
+    list.innerHTML = matches.map(m =>
+      `<div class="autocomplete-item" onclick="pickItem('${inputId}','${listId}','${m.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+        ${m}
+       </div>`
+    ).join("");
+    list.classList.add("open");
+  };
+
+  window.pickItem = function(inputId, listId, value) {
     document.getElementById(inputId).value = value;
     document.getElementById(listId).classList.remove("open");
   };
 
-  // Close dropdowns on outside click
   document.addEventListener("click", e => {
     ["streetList","fromList","toList"].forEach(id => {
       const el = document.getElementById(id);
-      if (el && !el.contains(e.target)) el.classList.remove("open");
+      if (el && !el.parentElement.contains(e.target)) el.classList.remove("open");
     });
   });
-
-  // ─── RENDER RESULTS ──────────────────────────────────
-  function renderResults(segments, street, from, to, minAddr, maxAddr) {
-    const container = document.getElementById("resultsSection");
-    container.innerHTML = `<div class="section-label" style="margin-bottom:10px">Results</div>`;
-
-    const card = document.createElement("div");
-    card.className = "result-card";
-    card.innerHTML = `
-      <div class="result-street">${street}</div>
-      <div class="result-meta">
-        <strong>From:</strong> ${from || "—"}<br>
-        <strong>To:</strong> ${to || "—"}<br>
-        <strong>Address range:</strong> ${minAddr}–${maxAddr}<br>
-        <strong>Segments:</strong> ${segments.length}
-      </div>
-    `;
-    container.appendChild(card);
-
-    // Filter string for copy
-    const filterStr = `FullName = '${street}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
-    const filterCard = document.createElement("div");
-    filterCard.className = "result-card";
-    filterCard.style.borderLeftColor = "var(--accent2)";
-    filterCard.innerHTML = `
-      <div class="result-meta" style="margin-bottom:6px"><strong>ArcGIS Filter String:</strong></div>
-      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);word-break:break-all;line-height:1.6">${filterStr}</div>
-      <button onclick="copyFilter('${filterStr.replace(/'/g,"\\'")}', this)"
-        style="margin-top:8px;background:transparent;border:1px solid var(--border);color:var(--muted);
-               font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:0.06em;
-               text-transform:uppercase;padding:4px 10px;border-radius:3px;cursor:pointer;">
-        Copy Filter
-      </button>
-    `;
-    container.appendChild(filterCard);
-  }
-
-  window.copyFilter = function(text, btn) {
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = "Copied!";
-      btn.style.color = "var(--success)";
-      btn.style.borderColor = "var(--success)";
-      setTimeout(() => {
-        btn.textContent = "Copy Filter";
-        btn.style.color = "var(--muted)";
-        btn.style.borderColor = "var(--border)";
-      }, 2000);
-    });
-  };
 
   // ─── STATUS ──────────────────────────────────────────
   function setStatus(type, msg) {
     const el = document.getElementById("statusMsg");
     el.className = `status-${type}`;
-    el.innerHTML = msg;
+    el.textContent = msg;
   }
 
 });
 </script>
-
 </body>
 </html>
