@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Street Segment Builder</title>
+  <title>Street Segment Builder — Lynwood</title>
 
-  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css"/>
-  <script src="https://js.arcgis.com/4.29/"></script>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
-  <style> #mapView { width: 100%; height: 100%; min-height: 100px; } </style>
 
   <style>
     :root {
@@ -26,228 +28,165 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
+    html, body {
+      height: 100%;
       font-family: 'Barlow Condensed', sans-serif;
       background: var(--bg);
       color: var(--text);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
       overflow: hidden;
     }
+
+    body { display: flex; flex-direction: column; }
 
     header {
       background: var(--panel);
       border-bottom: 1px solid var(--border);
       padding: 10px 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-shrink: 0;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0; z-index: 1000;
     }
-
     .logo-mark {
-      width: 30px; height: 30px;
-      background: var(--accent);
+      width: 28px; height: 28px; background: var(--accent); flex-shrink: 0;
       clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
-      flex-shrink: 0;
     }
+    header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    header span { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
 
-    header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-    header span { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-left: 4px; }
-
-    .layout { display: flex; flex: 1; overflow: hidden; }
+    .layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
     /* ── SIDEBAR ── */
     .sidebar {
-      width: 310px; flex-shrink: 0;
+      width: 300px; flex-shrink: 0;
       background: var(--panel);
       border-right: 1px solid var(--border);
       display: flex; flex-direction: column;
       overflow: hidden;
     }
-
-    .sidebar-top { overflow-y: auto; flex-shrink: 0; }
-    .sidebar-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-scroll { overflow-y: auto; flex-shrink: 0; max-height: 55vh; }
+    .sidebar-section { padding: 12px 14px; border-bottom: 1px solid var(--border); }
     .section-label {
       font-size: 10px; font-weight: 700; letter-spacing: 0.15em;
-      text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
     }
-
-    .field-group { margin-bottom: 10px; }
+    .field-group { margin-bottom: 8px; }
     .field-label {
-      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
       text-transform: uppercase; color: var(--muted);
-      margin-bottom: 4px; display: flex; align-items: center; gap: 5px;
+      margin-bottom: 3px; display: flex; align-items: center; gap: 4px;
     }
     .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
-    .dot.orange { background: var(--accent2); }
-    .dot.green  { background: var(--success); }
+    .dot.o { background: var(--accent2); }
+    .dot.g { background: var(--success); }
 
     input[type="text"] {
       width: 100%; background: var(--input-bg);
       border: 1px solid var(--border); border-radius: 4px;
       color: var(--text); font-family: 'DM Mono', monospace;
-      font-size: 13px; padding: 7px 10px; outline: none;
+      font-size: 12px; padding: 6px 9px; outline: none;
       transition: border-color 0.15s;
     }
     input[type="text"]::placeholder { color: var(--muted); }
     input[type="text"]:focus { border-color: var(--accent); }
 
-    .autocomplete-wrapper { position: relative; }
-    .autocomplete-list {
+    .ac-wrap { position: relative; }
+    .ac-list {
       position: absolute; top: 100%; left: 0; right: 0;
       background: #1e2230; border: 1px solid var(--border);
       border-top: none; border-radius: 0 0 4px 4px;
-      max-height: 150px; overflow-y: auto; z-index: 200; display: none;
+      max-height: 130px; overflow-y: auto; z-index: 9999; display: none;
     }
-    .autocomplete-list.open { display: block; }
-    .autocomplete-item {
-      padding: 7px 10px; font-family: 'DM Mono', monospace;
-      font-size: 12px; cursor: pointer; transition: background 0.1s;
+    .ac-list.open { display: block; }
+    .ac-item {
+      padding: 6px 9px; font-family: 'DM Mono', monospace;
+      font-size: 11px; cursor: pointer;
     }
-    .autocomplete-item:hover { background: rgba(245,200,66,0.15); color: var(--accent); }
+    .ac-item:hover { background: rgba(245,200,66,0.15); color: var(--accent); }
 
-    .btn-row { display: flex; gap: 6px; margin-top: 4px; }
-
+    .btn-row { display: flex; gap: 5px; margin-top: 4px; }
     .btn {
       flex: 1; border: none; border-radius: 4px;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase; padding: 9px 6px; cursor: pointer;
-      transition: background 0.15s, transform 0.1s;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 8px 4px; cursor: pointer;
+      transition: opacity 0.15s;
     }
-    .btn:active { transform: translateY(1px); }
-    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-
-    .btn-primary { background: var(--accent); color: #0f1117; }
-    .btn-primary:hover:not(:disabled) { background: #ffd84d; }
-
-    .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-secondary:hover:not(:disabled) { border-color: var(--text); color: var(--text); }
-
-    .btn-add { background: rgba(52,211,153,0.15); color: var(--success); border: 1px solid rgba(52,211,153,0.3); }
-    .btn-add:hover:not(:disabled) { background: rgba(52,211,153,0.25); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-y  { background: var(--accent);  color: #0f1117; }
+    .btn-g  { background: rgba(52,211,153,0.2); color: var(--success); border: 1px solid rgba(52,211,153,0.4); }
+    .btn-s  { background: transparent; color: var(--muted); border: 1px solid var(--border); }
 
     .status-box {
-      padding: 10px 16px; font-family: 'DM Mono', monospace;
-      font-size: 12px; border-bottom: 1px solid var(--border); min-height: 40px;
+      padding: 8px 14px; font-family: 'DM Mono', monospace;
+      font-size: 11px; border-bottom: 1px solid var(--border); min-height: 36px;
     }
-    .status-idle    { color: var(--muted); }
-    .status-loading { color: var(--accent); }
-    .status-success { color: var(--success); }
-    .status-error   { color: var(--error); }
+    .s-idle    { color: var(--muted); }
+    .s-loading { color: var(--accent); }
+    .s-ok      { color: var(--success); }
+    .s-err     { color: var(--error); }
 
-    /* ── COLLECTION LIST ── */
-    .collection-header {
-      padding: 10px 16px 6px;
+    /* ── COLLECTION ── */
+    .col-header {
+      padding: 8px 14px 6px;
       display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-
-    .collection-count {
-      font-family: 'DM Mono', monospace; font-size: 11px;
+    .col-badge {
+      font-family: 'DM Mono', monospace; font-size: 10px;
       background: var(--accent); color: #0f1117;
-      padding: 2px 7px; border-radius: 10px; font-weight: 500;
+      padding: 1px 6px; border-radius: 8px;
     }
-
-    .collection-list {
-      flex: 1; overflow-y: auto; padding: 8px 0;
+    .col-list { flex: 1; overflow-y: auto; }
+    .col-item {
+      padding: 7px 14px; border-bottom: 1px solid rgba(42,47,63,0.5);
+      display: flex; align-items: flex-start; gap: 7px;
     }
-
-    .collection-item {
-      padding: 8px 16px; border-bottom: 1px solid rgba(42,47,63,0.5);
-      display: flex; align-items: flex-start; gap: 8px;
-      animation: fadeIn 0.2s ease;
-      transition: background 0.1s;
-    }
-    .collection-item:hover { background: rgba(245,200,66,0.04); }
-
-    @keyframes fadeIn { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform: none; } }
-
-    .item-color-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      flex-shrink: 0; margin-top: 3px;
-    }
-
-    .item-info { flex: 1; min-width: 0; }
-    .item-street {
-      font-family: 'DM Mono', monospace; font-size: 12px;
-      color: var(--accent); white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis;
-    }
-    .item-cross {
-      font-size: 11px; color: var(--muted); margin-top: 2px;
+    .ci-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+    .ci-info { flex: 1; min-width: 0; }
+    .ci-street {
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .item-seg-count {
-      font-family: 'DM Mono', monospace; font-size: 10px;
-      color: var(--muted); white-space: nowrap;
+    .ci-cross { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .ci-segs  { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .btn-rm   { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0; }
+    .btn-rm:hover { color: var(--error); }
+    .empty { padding: 20px 14px; text-align: center; color: var(--muted); font-size: 11px; font-family: 'DM Mono', monospace; line-height: 1.8; }
+
+    /* ── EXPORT ── */
+    .export-footer { padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .btn-export {
+      width: 100%; background: var(--accent2); color: #fff; border: none; border-radius: 4px;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase; padding: 10px; cursor: pointer;
     }
+    .btn-export:hover:not(:disabled) { opacity: 0.85; }
+    .btn-export:disabled { opacity: 0.35; cursor: not-allowed; }
+    .export-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-align: center; margin-top: 5px; }
 
-    .btn-remove {
-      background: none; border: none; color: var(--muted);
-      cursor: pointer; font-size: 16px; padding: 0 2px;
-      line-height: 1; transition: color 0.1s; flex-shrink: 0;
-    }
-    .btn-remove:hover { color: var(--error); }
-
-    .empty-state {
-      padding: 24px 16px; text-align: center;
-      color: var(--muted); font-size: 12px; font-family: 'DM Mono', monospace;
-      line-height: 1.8;
-    }
-
-    /* ── EXPORT FOOTER ── */
-    .export-footer {
-      padding: 12px 16px; border-top: 1px solid var(--border);
-      flex-shrink: 0; background: var(--panel);
-    }
-
-    .export-footer .btn-export {
-      width: 100%; background: var(--accent2); color: #fff;
-      border: none; border-radius: 4px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; padding: 11px; cursor: pointer;
-      transition: background 0.15s;
-    }
-    .export-footer .btn-export:hover:not(:disabled) { background: #ff835a; }
-    .export-footer .btn-export:disabled { opacity: 0.35; cursor: not-allowed; }
-
-    .export-footer .export-meta {
-      font-family: 'DM Mono', monospace; font-size: 10px;
-      color: var(--muted); text-align: center; margin-top: 6px;
-    }
-
-    #mapView { flex: 1; background: #0a0d14; }
-
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    /* ── MAP ── */
+    #map { flex: 1; min-width: 0; }
+    .leaflet-container { background: #1a1d26 !important; }
   </style>
 </head>
 <body>
 
 <header>
   <div class="logo-mark"></div>
-  <div>
-    <h1>Segment Builder <span>// Lynwood, CA</span></h1>
-  </div>
+  <h1>Segment Builder <span>// Lynwood, CA</span></h1>
 </header>
 
 <div class="layout">
   <div class="sidebar">
-    <div class="sidebar-top">
+    <div class="sidebar-scroll">
 
       <!-- CONNECT -->
       <div class="sidebar-section">
-        <div class="section-label">⚙ Layer Connection</div>
+        <div class="section-label">⚙ ArcGIS Feature Layer</div>
         <div class="field-group">
-          <div class="field-label">Feature Layer URL</div>
+          <div class="field-label">REST Endpoint URL</div>
           <input type="text" id="layerUrl" placeholder="https://services.arcgis.com/.../FeatureServer/0"/>
         </div>
-        <button class="btn btn-primary" onclick="connectLayer()" id="btnConnect">Connect Layer</button>
+        <button class="btn btn-y" onclick="connectLayer()" id="btnConnect">Connect Layer</button>
       </div>
 
       <!-- SEARCH -->
@@ -256,494 +195,384 @@
 
         <div class="field-group">
           <div class="field-label"><span class="dot"></span> Street Name</div>
-          <div class="autocomplete-wrapper">
-            <input type="text" id="streetInput" placeholder="e.g. Mulford Ave"
-              oninput="onAutocomplete('streetInput','streetList',streetNames)" autocomplete="off"/>
-            <div class="autocomplete-list" id="streetList"></div>
+          <div class="ac-wrap">
+            <input type="text" id="streetInput" placeholder="e.g. Mulford Ave" oninput="doAC(this,'streetAC',streetNames)" autocomplete="off"/>
+            <div class="ac-list" id="streetAC"></div>
           </div>
         </div>
 
         <div class="field-group">
-          <div class="field-label"><span class="dot orange"></span> From Cross Street</div>
-          <div class="autocomplete-wrapper">
-            <input type="text" id="fromInput" placeholder="e.g. California Ave"
-              oninput="onAutocomplete('fromInput','fromList',allCrossStreets)" autocomplete="off"/>
-            <div class="autocomplete-list" id="fromList"></div>
+          <div class="field-label"><span class="dot o"></span> From Cross Street</div>
+          <div class="ac-wrap">
+            <input type="text" id="fromInput" placeholder="e.g. California Ave" oninput="doAC(this,'fromAC',crossNames)" autocomplete="off"/>
+            <div class="ac-list" id="fromAC"></div>
           </div>
         </div>
 
         <div class="field-group">
-          <div class="field-label"><span class="dot green"></span> To Cross Street</div>
-          <div class="autocomplete-wrapper">
-            <input type="text" id="toInput" placeholder="e.g. Birch St"
-              oninput="onAutocomplete('toInput','toList',allCrossStreets)" autocomplete="off"/>
-            <div class="autocomplete-list" id="toList"></div>
+          <div class="field-label"><span class="dot g"></span> To Cross Street</div>
+          <div class="ac-wrap">
+            <input type="text" id="toInput" placeholder="e.g. Birch St" oninput="doAC(this,'toAC',crossNames)" autocomplete="off"/>
+            <div class="ac-list" id="toAC"></div>
           </div>
         </div>
 
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="previewSegment()" id="btnPreview" disabled>Preview</button>
-          <button class="btn btn-add"     onclick="addToCollection()" id="btnAdd" disabled>+ Add to List</button>
-          <button class="btn btn-secondary" onclick="clearSearch()">Clear</button>
+          <button class="btn btn-y"  onclick="previewSegment()" id="btnPreview" disabled>Preview</button>
+          <button class="btn btn-g"  onclick="addToCollection()" id="btnAdd" disabled>+ Add</button>
+          <button class="btn btn-s"  onclick="clearSearch()">Clear</button>
         </div>
       </div>
 
       <!-- STATUS -->
-      <div class="status-box">
-        <div id="statusMsg" class="status-idle">○ Connect a layer to begin</div>
-      </div>
-
+      <div class="status-box"><div id="statusMsg" class="s-idle">○ Connect a layer to begin</div></div>
     </div>
 
     <!-- COLLECTION -->
-    <div class="collection-header">
-      <div class="section-label" style="margin-bottom:0">Segment Collection</div>
-      <div class="collection-count" id="collectionCount">0</div>
+    <div class="col-header">
+      <div class="section-label" style="margin:0">Segment Collection</div>
+      <div class="col-badge" id="colCount">0</div>
     </div>
-
-    <div class="collection-list" id="collectionList">
-      <div class="empty-state">No segments added yet.<br>Search and preview a segment,<br>then click "+ Add to List".</div>
+    <div class="col-list" id="colList">
+      <div class="empty">No segments yet.<br>Preview then click + Add.</div>
     </div>
 
     <!-- EXPORT -->
     <div class="export-footer">
-      <button class="btn-export" onclick="exportGeoJSON()" id="btnExport" disabled>
-        ⬇ Export as GeoJSON
-      </button>
-      <div class="export-meta" id="exportMeta">Add segments to enable export</div>
+      <button class="btn-export" onclick="exportGeoJSON()" id="btnExport" disabled>⬇ Export GeoJSON</button>
+      <div class="export-meta" id="exportMeta">Add segments to export</div>
     </div>
-
   </div>
 
-  <div id="mapView"></div>
+  <!-- MAP -->
+  <div id="map"></div>
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-require([
-  "esri/Map",
-  "esri/views/MapView",
-  "esri/layers/FeatureLayer",
-  "esri/renderers/SimpleRenderer",
-  "esri/symbols/SimpleLineSymbol",
-  "esri/Graphic",
-  "esri/layers/GraphicsLayer"
-], function(Map, MapView, FeatureLayer, SimpleRenderer, SimpleLineSymbol, Graphic, GraphicsLayer) {
-
-  // ─── STATE ───────────────────────────────────────────
-  let featureLayer   = null;
-  let previewLayer   = null;        // yellow — current preview
-  let collectionGraphicsLayer = null; // persisted collected segments
-  let streetNames    = [];
-  let allCrossStreets = [];
-  let lastPreviewData = null;       // { features, street, from, to, minAddr, maxAddr }
-  let collection     = [];          // [{ id, street, from, to, minAddr, maxAddr, features, color }]
-  let collectionIdCounter = 0;
-
-  // Distinct colors for each collected entry
-  const COLORS = [
-    [245,200,66],   // yellow
-    [255,107,53],   // orange
-    [52,211,153],   // green
-    [99,179,237],   // blue
-    [216,180,254],  // purple
-    [251,146,60],   // amber
-    [167,243,208],  // mint
-    [253,186,116],  // peach
-  ];
-
-  // ─── MAP SETUP ───────────────────────────────────────
-  const map = new Map({ basemap: "dark-gray-vector" });
-
-  const view = new MapView({
-    container: "mapView",
-    map: map,
-    center: [-118.2114, 33.9303],
-    zoom: 14,
-    ui: { components: [] }   // avoid Calcite injection errors in iframe/GitHub Pages
-  });
-
-  // Track view readiness — all goTo calls must go through safeGoTo
-  let viewReady = false;
-  view.when(() => { viewReady = true; });
-
-  function safeGoTo(target, options) {
-    if (viewReady) {
-      view.goTo(target, options).catch(() => {});
-    } else {
-      view.when(() => view.goTo(target, options).catch(() => {}));
-    }
-  }
-
-  // Graphics layer for collected segments (persistent)
-  collectionGraphicsLayer = new GraphicsLayer();
-  map.add(collectionGraphicsLayer);
-
-  // Graphics layer for preview (temporary)
-  previewLayer = new GraphicsLayer();
-  map.add(previewLayer);
-
-  // ─── CONNECT LAYER ───────────────────────────────────
-  window.connectLayer = async function() {
-    const url = document.getElementById("layerUrl").value.trim();
-    if (!url) { setStatus("error", "Enter a Feature Layer URL"); return; }
-
-    setStatus("loading", "Connecting...");
-    document.getElementById("btnConnect").disabled = true;
-
-    try {
-      if (featureLayer) map.remove(featureLayer);
-
-      featureLayer = new FeatureLayer({
-        url,
-        renderer: new SimpleRenderer({
-          symbol: new SimpleLineSymbol({ color: [80,90,110,0.5], width: 1 })
-        }),
-        outFields: ["FullName","FROM_CROSS","TO_CROSS","From_L","To_L","OBJECTID"]
-      });
-
-      map.add(featureLayer, 0); // add beneath graphics layers
-      await featureLayer.load();
-
-      const ext = await featureLayer.queryExtent();
-      if (ext?.extent) safeGoTo(ext.extent.expand(1.1));
-
-      await loadStreetNames();
-
-      document.getElementById("btnPreview").disabled = false;
-      document.getElementById("btnConnect").disabled = false;
-      setStatus("success", "✓ Layer connected — start searching");
-
-    } catch(e) {
-      setStatus("error", "Connection failed — check URL");
-      document.getElementById("btnConnect").disabled = false;
-    }
-  };
-
-  async function loadStreetNames() {
-    setStatus("loading", "Loading street names...");
-    const query = featureLayer.createQuery();
-    query.where = "FullName IS NOT NULL";
-    query.outFields = ["FullName","FROM_CROSS","TO_CROSS"];
-    query.num = 10000;
-
-    const result = await featureLayer.queryFeatures(query);
-    const nameSet = new Set(), crossSet = new Set();
-
-    result.features.forEach(f => {
-      if (f.attributes.FullName)   nameSet.add(f.attributes.FullName.trim());
-      if (f.attributes.FROM_CROSS) f.attributes.FROM_CROSS.split(",").forEach(s => crossSet.add(s.trim()));
-      if (f.attributes.TO_CROSS)   f.attributes.TO_CROSS.split(",").forEach(s => crossSet.add(s.trim()));
-    });
-
-    window.streetNames     = [...nameSet].sort();
-    window.allCrossStreets = [...crossSet].sort();
-    setStatus("success", `✓ Ready — ${window.streetNames.length} streets loaded`);
-  }
-
-  // ─── PREVIEW ─────────────────────────────────────────
-  window.previewSegment = async function() {
-    const street = val("streetInput");
-    const from   = val("fromInput");
-    const to     = val("toInput");
-
-    if (!street)        { setStatus("error", "Enter a street name"); return; }
-    if (!from && !to)   { setStatus("error", "Enter at least one cross street"); return; }
-    if (!featureLayer)  { setStatus("error", "Connect a layer first"); return; }
-
-    setStatus("loading", "Querying...");
-    previewLayer.removeAll();
-    lastPreviewData = null;
-    document.getElementById("btnAdd").disabled = true;
-
-    try {
-      const { features, minAddr, maxAddr } = await querySegments(street, from, to);
-
-      if (features.length === 0) {
-        setStatus("error", `No segments found — check spelling`);
-        return;
-      }
-
-      // Draw preview in yellow
-      features.forEach(f => {
-        previewLayer.add(new Graphic({
-          geometry: f.geometry,
-          symbol: new SimpleLineSymbol({ color: [245,200,66,1], width: 5 })
-        }));
-      });
-
-      // Zoom to preview
-      const extent = features.reduce((e, f) => e ? e.union(f.geometry.extent) : f.geometry.extent, null);
-      if (extent) safeGoTo(extent.expand(2.5));
-
-      lastPreviewData = { features, street, from, to, minAddr, maxAddr };
-      document.getElementById("btnAdd").disabled = false;
-      setStatus("success", `✓ Preview: ${features.length} segment${features.length > 1 ? "s" : ""} — click "+ Add to List" to keep`);
-
-    } catch(e) {
-      setStatus("error", "Query failed");
-      console.error(e);
-    }
-  };
-
-  // ─── ADD TO COLLECTION ───────────────────────────────
-  window.addToCollection = function() {
-    if (!lastPreviewData) return;
-
-    const { features, street, from, to, minAddr, maxAddr } = lastPreviewData;
-    const id    = ++collectionIdCounter;
-    const color = COLORS[(id - 1) % COLORS.length];
-
-    // Draw on persistent collection layer with unique color
-    features.forEach(f => {
-      collectionGraphicsLayer.add(new Graphic({
-        geometry: f.geometry,
-        symbol: new SimpleLineSymbol({ color: [...color, 1], width: 5 }),
-        attributes: { collectionId: id }
-      }));
-    });
-
-    // Clear preview
-    previewLayer.removeAll();
-    lastPreviewData = null;
-    document.getElementById("btnAdd").disabled = true;
-
-    // Store in collection array
-    collection.push({ id, street, from, to, minAddr, maxAddr, features, color });
-    renderCollectionList();
-
-    setStatus("success", `✓ Added — ${collection.length} segment${collection.length > 1 ? "s" : ""} in collection`);
-
-    // Reset inputs for next search
-    document.getElementById("streetInput").value = "";
-    document.getElementById("fromInput").value = "";
-    document.getElementById("toInput").value = "";
-  };
-
-  // ─── REMOVE FROM COLLECTION ──────────────────────────
-  window.removeFromCollection = function(id) {
-    collection = collection.filter(c => c.id !== id);
-
-    // Redraw collection graphics layer
-    collectionGraphicsLayer.removeAll();
-    collection.forEach(entry => {
-      entry.features.forEach(f => {
-        collectionGraphicsLayer.add(new Graphic({
-          geometry: f.geometry,
-          symbol: new SimpleLineSymbol({ color: [...entry.color, 1], width: 5 })
-        }));
-      });
-    });
-
-    renderCollectionList();
-    setStatus("idle", `Removed — ${collection.length} segment${collection.length !== 1 ? "s" : ""} remaining`);
-  };
-
-  function renderCollectionList() {
-    const container = document.getElementById("collectionList");
-    const count     = document.getElementById("collectionCount");
-    const exportBtn = document.getElementById("btnExport");
-    const exportMeta = document.getElementById("exportMeta");
-
-    count.textContent = collection.length;
-    exportBtn.disabled = collection.length === 0;
-
-    if (collection.length === 0) {
-      container.innerHTML = `<div class="empty-state">No segments added yet.<br>Search and preview a segment,<br>then click "+ Add to List".</div>`;
-      exportMeta.textContent = "Add segments to enable export";
-      return;
-    }
-
-    const totalSegs = collection.reduce((n, c) => n + c.features.length, 0);
-    exportMeta.textContent = `${collection.length} entries · ${totalSegs} total segments`;
-
-    container.innerHTML = collection.map(entry => {
-      const [r,g,b] = entry.color;
-      return `
-        <div class="collection-item">
-          <div class="item-color-dot" style="background:rgb(${r},${g},${b})"></div>
-          <div class="item-info">
-            <div class="item-street">${entry.street}</div>
-            <div class="item-cross">
-              ${entry.from || "—"} → ${entry.to || "—"}
-            </div>
-          </div>
-          <div class="item-seg-count">${entry.features.length} seg${entry.features.length > 1 ? "s" : ""}</div>
-          <button class="btn-remove" onclick="removeFromCollection(${entry.id})" title="Remove">×</button>
-        </div>
-      `;
-    }).join("");
-  }
-
-  // ─── EXPORT GEOJSON ──────────────────────────────────
-  window.exportGeoJSON = function() {
-    if (collection.length === 0) return;
-
-    const allFeatures = [];
-
-    collection.forEach(entry => {
-      entry.features.forEach(f => {
-
-        // ── Geometry: safely flatten all paths into one LineString ──
-        let coords = [];
-        try {
-          const paths = f.geometry.paths;
-          if (Array.isArray(paths) && paths.length > 0) {
-            // Concatenate all paths — handles multi-path geometries
-            paths.forEach(path => {
-              path.forEach(pt => {
-                // pt is [x, y] or [x, y, z] — keep only [lon, lat]
-                if (Array.isArray(pt) && pt.length >= 2) {
-                  coords.push([pt[0], pt[1]]);
-                }
-              });
-            });
-          }
-        } catch(e) {
-          console.warn("Skipping feature with bad geometry", e);
-          return; // skip this feature
-        }
-
-        if (coords.length < 2) return; // skip degenerate lines
-
-        // ── Properties: strip nulls and internal ArcGIS fields ──
-        const rawAttrs = f.attributes || {};
-        const cleanProps = {};
-        Object.entries(rawAttrs).forEach(([k, v]) => {
-          // Skip internal ArcGIS fields and nulls
-          if (v === null || v === undefined) return;
-          if (k === "Shape__Length" || k === "Shape.STLength()") return;
-          cleanProps[k] = v;
-        });
-
-        // Add collection metadata
-        cleanProps.StreetName  = entry.street;
-        cleanProps.FromCross   = entry.from  || "";
-        cleanProps.ToCross     = entry.to    || "";
-        cleanProps.AddrFrom    = entry.minAddr;
-        cleanProps.AddrTo      = entry.maxAddr;
-
-        allFeatures.push({
-          type: "Feature",
-          properties: cleanProps,
-          geometry: {
-            type: "LineString",
-            coordinates: coords
-          }
-        });
-      });
-    });
-
-    // ── Build valid GeoJSON with explicit CRS for ArcGIS Online ──
-    const geojson = {
-      type: "FeatureCollection",
-      crs: {
-        type: "name",
-        properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" }
-      },
-      features: allFeatures
-    };
-
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = "lynwood_highlighted_segments.geojson";
-    a.click();
-    URL.revokeObjectURL(url);
-
-    setStatus("success", `✓ Exported ${allFeatures.length} segments as GeoJSON`);
-  };
-
-  // ─── CLEAR SEARCH ────────────────────────────────────
-  window.clearSearch = function() {
-    previewLayer.removeAll();
-    lastPreviewData = null;
-    document.getElementById("streetInput").value = "";
-    document.getElementById("fromInput").value = "";
-    document.getElementById("toInput").value = "";
-    document.getElementById("btnAdd").disabled = true;
-    setStatus("idle", "○ Cleared");
-  };
-
-  // ─── QUERY HELPER ────────────────────────────────────
-  async function querySegments(street, from, to) {
-    // Step 1 — find boundary segments
-    const crossParts = [];
-    if (from) {
-      crossParts.push(`FROM_CROSS LIKE '%${esc(from)}%'`);
-      crossParts.push(`TO_CROSS LIKE '%${esc(from)}%'`);
-    }
-    if (to) {
-      crossParts.push(`FROM_CROSS LIKE '%${esc(to)}%'`);
-      crossParts.push(`TO_CROSS LIKE '%${esc(to)}%'`);
-    }
-    const boundaryWhere = `FullName = '${esc(street)}' AND (${crossParts.join(" OR ")})`;
-
-    const bq = featureLayer.createQuery();
-    bq.where = boundaryWhere;
-    bq.outFields = ["From_L","To_L","OBJECTID"];
-    bq.returnGeometry = false;
-
-    const bResult = await featureLayer.queryFeatures(bq);
-    if (bResult.features.length === 0) return { features: [], minAddr: null, maxAddr: null };
-
-    const fromVals = bResult.features.map(f => f.attributes.From_L).filter(v => v != null);
-    const toVals   = bResult.features.map(f => f.attributes.To_L).filter(v => v != null);
-    const minAddr  = Math.min(...fromVals);
-    const maxAddr  = Math.max(...toVals);
-
-    // Step 2 — get all segments in range
-    const rq = featureLayer.createQuery();
-    rq.where = `FullName = '${esc(street)}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
-    rq.outFields = ["FullName","FROM_CROSS","TO_CROSS","From_L","To_L","OBJECTID"];
-    rq.returnGeometry = true;
-
-    const rResult = await featureLayer.queryFeatures(rq);
-    return { features: rResult.features, minAddr, maxAddr };
-  }
-
-  function esc(s) { return s.replace(/'/g, "''"); }
-  function val(id) { return document.getElementById(id).value.trim(); }
-
-  // ─── AUTOCOMPLETE ────────────────────────────────────
-  window.onAutocomplete = function(inputId, listId, items) {
-    const v = document.getElementById(inputId).value.toLowerCase();
-    const list = document.getElementById(listId);
-    if (!v || v.length < 2) { list.classList.remove("open"); return; }
-
-    const matches = items.filter(i => i.toLowerCase().includes(v)).slice(0, 8);
-    if (!matches.length) { list.classList.remove("open"); return; }
-
-    list.innerHTML = matches.map(m =>
-      `<div class="autocomplete-item" onclick="pickItem('${inputId}','${listId}','${m.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
-        ${m}
-       </div>`
-    ).join("");
-    list.classList.add("open");
-  };
-
-  window.pickItem = function(inputId, listId, value) {
-    document.getElementById(inputId).value = value;
-    document.getElementById(listId).classList.remove("open");
-  };
-
-  document.addEventListener("click", e => {
-    ["streetList","fromList","toList"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el && !el.parentElement.contains(e.target)) el.classList.remove("open");
-    });
-  });
-
-  // ─── STATUS ──────────────────────────────────────────
-  function setStatus(type, msg) {
-    const el = document.getElementById("statusMsg");
-    el.className = `status-${type}`;
-    el.textContent = msg;
-  }
-
+// ─── GLOBALS ─────────────────────────────────────────────────────
+let map, previewGroup, collectionGroup;
+let layerUrl = "";
+let streetNames = [], crossNames = [];
+let lastPreview = null;
+let collection  = [];
+let colIdSeq    = 0;
+
+const COLORS = [
+  "#f5c842","#ff6b35","#34d399","#63b3ed",
+  "#d8b4fe","#fb923c","#a7f3d0","#fde68a"
+];
+
+// ─── MAP INIT ────────────────────────────────────────────────────
+window.addEventListener("load", function() {
+  map = L.map("map", { zoomControl: true }).setView([33.9303, -118.2114], 14);
+
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: '© OpenStreetMap © CARTO',
+    maxZoom: 19
+  }).addTo(map);
+
+  previewGroup    = L.layerGroup().addTo(map);
+  collectionGroup = L.layerGroup().addTo(map);
 });
-}); // DOMContentLoaded
+
+// ─── CONNECT LAYER ───────────────────────────────────────────────
+async function connectLayer() {
+  layerUrl = document.getElementById("layerUrl").value.trim().replace(/\/+$/, "");
+  if (!layerUrl) { setStatus("err","Enter a Feature Layer URL"); return; }
+
+  setStatus("loading","Connecting...");
+  document.getElementById("btnConnect").disabled = true;
+
+  try {
+    const info = await fetchJSON(`${layerUrl}?f=json`);
+    if (!info || info.error) throw new Error(info?.error?.message || "Bad response");
+
+    setStatus("loading","Loading street names...");
+    await loadStreetNames();
+
+    document.getElementById("btnPreview").disabled = false;
+    document.getElementById("btnConnect").disabled = false;
+    setStatus("ok", `✓ Connected — ${streetNames.length} streets loaded`);
+
+    // Zoom to layer extent
+    try {
+      const e = info.extent;
+      if (e) map.fitBounds([[e.ymin, e.xmin],[e.ymax, e.xmax]]);
+    } catch(_) {}
+
+  } catch(e) {
+    setStatus("err", `Connection failed: ${e.message}`);
+    document.getElementById("btnConnect").disabled = false;
+  }
+}
+
+async function loadStreetNames() {
+  const url = `${layerUrl}/query?where=FullName+IS+NOT+NULL&outFields=FullName,FROM_CROSS,TO_CROSS&returnDistinctValues=false&resultRecordCount=10000&f=geojson`;
+  const data = await fetchJSON(url);
+
+  const nameSet = new Set(), crossSet = new Set();
+  (data.features || []).forEach(f => {
+    const p = f.properties || {};
+    if (p.FullName)   nameSet.add(p.FullName.trim());
+    if (p.FROM_CROSS) p.FROM_CROSS.split(",").forEach(s => { if(s.trim()) crossSet.add(s.trim()); });
+    if (p.TO_CROSS)   p.TO_CROSS.split(",").forEach(s => { if(s.trim()) crossSet.add(s.trim()); });
+  });
+
+  streetNames = [...nameSet].sort();
+  crossNames  = [...crossSet].sort();
+}
+
+// ─── PREVIEW ─────────────────────────────────────────────────────
+async function previewSegment() {
+  const street = gv("streetInput"), from = gv("fromInput"), to = gv("toInput");
+  if (!street)       { setStatus("err","Enter a street name"); return; }
+  if (!from && !to)  { setStatus("err","Enter at least one cross street"); return; }
+  if (!layerUrl)     { setStatus("err","Connect a layer first"); return; }
+
+  setStatus("loading","Querying...");
+  previewGroup.clearLayers();
+  lastPreview = null;
+  document.getElementById("btnAdd").disabled = true;
+
+  try {
+    const result = await querySegments(street, from, to);
+    if (!result || result.features.length === 0) {
+      setStatus("err","No segments found — check spelling"); return;
+    }
+
+    const { features, minAddr, maxAddr } = result;
+    const bounds = [];
+
+    features.forEach(f => {
+      const coords = extractCoords(f);
+      if (!coords) return;
+      const latlngs = coords.map(c => [c[1], c[0]]);
+      L.polyline(latlngs, { color: "#f5c842", weight: 6, opacity: 1 }).addTo(previewGroup);
+      latlngs.forEach(ll => bounds.push(ll));
+    });
+
+    if (bounds.length) map.fitBounds(bounds, { padding: [60, 60] });
+
+    lastPreview = { features, street, from, to, minAddr, maxAddr };
+    document.getElementById("btnAdd").disabled = false;
+    setStatus("ok", `✓ ${features.length} segment${features.length > 1 ? "s" : ""} — click + Add to keep`);
+
+  } catch(e) {
+    setStatus("err", `Query error: ${e.message}`);
+    console.error(e);
+  }
+}
+
+// ─── ADD TO COLLECTION ───────────────────────────────────────────
+function addToCollection() {
+  if (!lastPreview) return;
+  const { features, street, from, to, minAddr, maxAddr } = lastPreview;
+  const id    = ++colIdSeq;
+  const color = COLORS[(id - 1) % COLORS.length];
+
+  features.forEach(f => {
+    const coords = extractCoords(f);
+    if (!coords) return;
+    L.polyline(coords.map(c => [c[1],c[0]]), { color, weight: 6, opacity: 1 }).addTo(collectionGroup);
+  });
+
+  previewGroup.clearLayers();
+  lastPreview = null;
+  document.getElementById("btnAdd").disabled = true;
+
+  collection.push({ id, street, from, to, minAddr, maxAddr, features, color });
+  renderList();
+  setStatus("ok", `✓ Added — ${collection.length} entr${collection.length > 1 ? "ies" : "y"} in collection`);
+
+  document.getElementById("streetInput").value = "";
+  document.getElementById("fromInput").value   = "";
+  document.getElementById("toInput").value     = "";
+}
+
+// ─── REMOVE ──────────────────────────────────────────────────────
+window.removeEntry = function(id) {
+  collection = collection.filter(c => c.id !== id);
+  collectionGroup.clearLayers();
+  collection.forEach(entry => {
+    entry.features.forEach(f => {
+      const coords = extractCoords(f);
+      if (!coords) return;
+      L.polyline(coords.map(c => [c[1],c[0]]), { color: entry.color, weight: 6 }).addTo(collectionGroup);
+    });
+  });
+  renderList();
+  setStatus("idle", `${collection.length} entr${collection.length !== 1 ? "ies" : "y"} remaining`);
+};
+
+function renderList() {
+  const list  = document.getElementById("colList");
+  const count = document.getElementById("colCount");
+  const btn   = document.getElementById("btnExport");
+  const meta  = document.getElementById("exportMeta");
+
+  count.textContent = collection.length;
+  btn.disabled = collection.length === 0;
+
+  if (collection.length === 0) {
+    list.innerHTML = `<div class="empty">No segments yet.<br>Preview then click + Add.</div>`;
+    meta.textContent = "Add segments to export";
+    return;
+  }
+
+  const total = collection.reduce((n,c) => n + c.features.length, 0);
+  meta.textContent = `${collection.length} entries · ${total} segments`;
+
+  list.innerHTML = collection.map(e => `
+    <div class="col-item">
+      <div class="ci-dot" style="background:${e.color}"></div>
+      <div class="ci-info">
+        <div class="ci-street">${e.street}</div>
+        <div class="ci-cross">${e.from||"—"} → ${e.to||"—"}</div>
+      </div>
+      <div class="ci-segs">${e.features.length}seg</div>
+      <button class="btn-rm" onclick="removeEntry(${e.id})">×</button>
+    </div>
+  `).join("");
+}
+
+// ─── EXPORT GEOJSON ──────────────────────────────────────────────
+function exportGeoJSON() {
+  if (collection.length === 0) return;
+
+  const features = [];
+
+  collection.forEach(entry => {
+    entry.features.forEach(f => {
+      const coords = extractCoords(f);
+      if (!coords || coords.length < 2) return;
+
+      const raw = f.properties || {};
+      const props = {};
+      Object.entries(raw).forEach(([k, val]) => {
+        if (val === null || val === undefined) return;
+        if (k === "Shape__Length" || k === "Shape.STLength()") return;
+        props[k] = val;
+      });
+      props.StreetName = entry.street;
+      props.FromCross  = entry.from  || "";
+      props.ToCross    = entry.to    || "";
+      props.AddrFrom   = entry.minAddr;
+      props.AddrTo     = entry.maxAddr;
+
+      features.push({
+        type: "Feature",
+        properties: props,
+        geometry: { type: "LineString", coordinates: coords }
+      });
+    });
+  });
+
+  const geojson = { type: "FeatureCollection", features };
+  const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/geo+json" });
+  const a = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(blob),
+    download: "lynwood_segments.geojson"
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus("ok", `✓ Exported ${features.length} segments`);
+}
+
+// ─── QUERY ───────────────────────────────────────────────────────
+async function querySegments(street, from, to) {
+  const crossParts = [];
+  if (from) {
+    crossParts.push(`FROM_CROSS LIKE '%${esc(from)}%'`);
+    crossParts.push(`TO_CROSS LIKE '%${esc(from)}%'`);
+  }
+  if (to) {
+    crossParts.push(`FROM_CROSS LIKE '%${esc(to)}%'`);
+    crossParts.push(`TO_CROSS LIKE '%${esc(to)}%'`);
+  }
+
+  const w1  = `FullName = '${esc(street)}' AND (${crossParts.join(" OR ")})`;
+  const r1  = await fetchJSON(`${layerUrl}/query?where=${encodeURIComponent(w1)}&outFields=From_L,To_L&returnGeometry=false&f=geojson`);
+
+  if (!r1.features || r1.features.length === 0) return { features: [], minAddr: null, maxAddr: null };
+
+  const fVals = r1.features.map(f => f.properties?.From_L).filter(v => v != null);
+  const tVals = r1.features.map(f => f.properties?.To_L).filter(v => v != null);
+  if (!fVals.length) return { features: [], minAddr: null, maxAddr: null };
+
+  const minAddr = Math.min(...fVals);
+  const maxAddr = Math.max(...tVals);
+
+  const w2  = `FullName = '${esc(street)}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
+  const r2  = await fetchJSON(`${layerUrl}/query?where=${encodeURIComponent(w2)}&outFields=FullName,FROM_CROSS,TO_CROSS,From_L,To_L,OBJECTID&returnGeometry=true&f=geojson`);
+
+  return { features: r2.features || [], minAddr, maxAddr };
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────
+function extractCoords(feature) {
+  try {
+    const geom = feature.geometry;
+    if (!geom) return null;
+    if (geom.type === "LineString") {
+      return geom.coordinates.filter(c => Array.isArray(c) && c.length >= 2).map(c => [c[0], c[1]]);
+    }
+    if (geom.type === "MultiLineString") {
+      const all = [];
+      geom.coordinates.forEach(ring => ring.forEach(c => { if (c.length >= 2) all.push([c[0],c[1]]); }));
+      return all.length >= 2 ? all : null;
+    }
+  } catch(e) { return null; }
+  return null;
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function esc(s) { return String(s).replace(/'/g, "''"); }
+function gv(id) { return document.getElementById(id).value.trim(); }
+
+function clearSearch() {
+  previewGroup.clearLayers();
+  lastPreview = null;
+  ["streetInput","fromInput","toInput"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("btnAdd").disabled = true;
+  setStatus("idle","○ Cleared");
+}
+
+// ─── AUTOCOMPLETE ────────────────────────────────────────────────
+window.doAC = function(input, listId, items) {
+  const v = input.value.toLowerCase();
+  const list = document.getElementById(listId);
+  if (v.length < 2) { list.classList.remove("open"); return; }
+  const matches = items.filter(i => i.toLowerCase().includes(v)).slice(0, 8);
+  if (!matches.length) { list.classList.remove("open"); return; }
+  list.innerHTML = matches.map(m =>
+    `<div class="ac-item" onmousedown="pickAC('${input.id}','${listId}','${m.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">${m}</div>`
+  ).join("");
+  list.classList.add("open");
+};
+
+window.pickAC = function(inputId, listId, val) {
+  document.getElementById(inputId).value = val;
+  document.getElementById(listId).classList.remove("open");
+};
+
+document.addEventListener("click", e => {
+  ["streetAC","fromAC","toAC"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.closest(".ac-wrap").contains(e.target)) el.classList.remove("open");
+  });
+});
+
+function setStatus(type, msg) {
+  const el = document.getElementById("statusMsg");
+  el.className = { loading:"s-loading", ok:"s-ok", err:"s-err", idle:"s-idle" }[type] || "s-idle";
+  el.textContent = msg;
+}
 </script>
 </body>
 </html>
+
