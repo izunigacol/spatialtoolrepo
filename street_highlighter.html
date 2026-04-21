@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Street Segment Highlighter</title>
+
+  <!-- ArcGIS Maps SDK -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css"/>
+  <script src="https://js.arcgis.com/4.29/"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --bg:        #0f1117;
+      --panel:     #181c27;
+      --border:    #2a2f3f;
+      --accent:    #f5c842;
+      --accent2:   #ff6b35;
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --highlight: #f5c842;
+      --input-bg:  #0f1117;
+      --success:   #34d399;
+      --error:     #f87171;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Barlow Condensed', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    header span {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .sidebar-section {
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .field-group {
+      margin-bottom: 12px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .field-label .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+    }
+
+    .field-label .dot.orange { background: var(--accent2); }
+    .field-label .dot.green  { background: var(--success); }
+
+    input[type="text"] {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]::placeholder { color: var(--muted); }
+    input[type="text"]:focus { border-color: var(--accent); }
+
+    .autocomplete-wrapper {
+      position: relative;
+    }
+
+    .autocomplete-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #1e2230;
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      max-height: 160px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+
+    .autocomplete-list.open { display: block; }
+
+    .autocomplete-item {
+      padding: 7px 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .autocomplete-item:hover,
+    .autocomplete-item.selected {
+      background: rgba(245,200,66,0.15);
+      color: var(--accent);
+    }
+
+    /* ── BUTTON ── */
+    .btn-highlight {
+      width: 100%;
+      background: var(--accent);
+      color: #0f1117;
+      border: none;
+      border-radius: 4px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 11px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      margin-top: 4px;
+    }
+
+    .btn-highlight:hover { background: #ffd84d; transform: translateY(-1px); }
+    .btn-highlight:active { transform: translateY(0); }
+    .btn-highlight:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+    .btn-clear {
+      width: 100%;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      margin-top: 6px;
+    }
+
+    .btn-clear:hover { border-color: var(--error); color: var(--error); }
+
+    /* ── STATUS ── */
+    .status-box {
+      padding: 14px 16px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      min-height: 52px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-idle    { color: var(--muted); }
+    .status-loading { color: var(--accent); }
+    .status-success { color: var(--success); }
+    .status-error   { color: var(--error); }
+
+    .status-box .status-icon { margin-right: 6px; }
+
+    /* ── RESULTS ── */
+    .results-section {
+      padding: 14px 16px;
+      flex: 1;
+    }
+
+    .result-card {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      border-left: 3px solid var(--accent);
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    .result-street {
+      font-family: 'DM Mono', monospace;
+      font-weight: 500;
+      color: var(--accent);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .result-meta {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .result-meta strong { color: var(--text); }
+
+    /* ── CONFIG NOTICE ── */
+    .config-notice {
+      background: rgba(255,107,53,0.1);
+      border: 1px solid rgba(255,107,53,0.3);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+      color: var(--accent2);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .config-notice a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+    /* ── MAP ── */
+    #mapView {
+      flex: 1;
+      background: #0a0d14;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark"></div>
+  <div>
+    <h1>Street Segment Highlighter <span>// Lynwood, CA</span></h1>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+
+    <!-- CONFIG SECTION -->
+    <div class="sidebar-section" id="configSection">
+      <div class="section-label">⚙ Configuration</div>
+      <div class="config-notice" id="configNotice">
+        Set your Feature Layer URL below to connect to your ArcGIS Online layer.
+      </div>
+      <div class="field-group">
+        <div class="field-label">Feature Layer URL</div>
+        <input type="text" id="layerUrl" placeholder="https://services.arcgis.com/.../FeatureServer/0"
+          value=""/>
+      </div>
+      <button class="btn-highlight" onclick="connectLayer()" id="btnConnect">Connect Layer</button>
+    </div>
+
+    <!-- SEARCH SECTION -->
+    <div class="sidebar-section">
+      <div class="section-label">🔍 Highlight Segment</div>
+
+      <div class="field-group">
+        <div class="field-label"><span class="dot"></span> Street Name</div>
+        <div class="autocomplete-wrapper">
+          <input type="text" id="streetInput" placeholder="e.g. Mulford Ave" oninput="onStreetInput()" autocomplete="off"/>
+          <div class="autocomplete-list" id="streetList"></div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label"><span class="dot orange"></span> From Cross Street</div>
+        <div class="autocomplete-wrapper">
+          <input type="text" id="fromInput" placeholder="e.g. California Ave" oninput="onCrossInput('from')" autocomplete="off"/>
+          <div class="autocomplete-list" id="fromList"></div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label"><span class="dot green"></span> To Cross Street</div>
+        <div class="autocomplete-wrapper">
+          <input type="text" id="toInput" placeholder="e.g. Birch St" oninput="onCrossInput('to')" autocomplete="off"/>
+          <div class="autocomplete-list" id="toList"></div>
+        </div>
+      </div>
+
+      <button class="btn-highlight" onclick="highlightSegment()" id="btnHighlight" disabled>
+        Highlight Segment
+      </button>
+      <button class="btn-clear" onclick="clearHighlight()">Clear</button>
+    </div>
+
+    <!-- STATUS -->
+    <div class="status-box">
+      <div id="statusMsg" class="status-idle">
+        <span class="status-icon">○</span> Connect a layer to begin
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results-section" id="resultsSection"></div>
+
+  </div>
+
+  <!-- ── MAP ── -->
+  <div id="mapView"></div>
+
+</div>
+
+<script>
+require([
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/layers/FeatureLayer",
+  "esri/renderers/SimpleRenderer",
+  "esri/symbols/SimpleLineSymbol",
+  "esri/geometry/Extent",
+  "esri/core/reactiveUtils"
+], function(Map, MapView, FeatureLayer, SimpleRenderer, SimpleLineSymbol, Extent, reactiveUtils) {
+
+  // ─── STATE ───────────────────────────────────────────
+  let featureLayer = null;
+  let highlightLayer = null;
+  let streetNames = [];
+  let allCrossStreets = [];
+
+  const map = new Map({ basemap: "dark-gray-vector" });
+
+  const view = new MapView({
+    container: "mapView",
+    map: map,
+    center: [-118.2114, 33.9303], // Lynwood, CA
+    zoom: 14,
+    ui: { components: ["zoom", "compass"] }
+  });
+
+  // ─── CONNECT LAYER ───────────────────────────────────
+  window.connectLayer = async function() {
+    const url = document.getElementById("layerUrl").value.trim();
+    if (!url) { setStatus("error", "Please enter a Feature Layer URL"); return; }
+
+    setStatus("loading", "Connecting to layer...");
+    document.getElementById("btnConnect").disabled = true;
+
+    try {
+      // Remove existing layers
+      if (featureLayer) map.remove(featureLayer);
+      if (highlightLayer) map.remove(highlightLayer);
+
+      // Base layer — full network, muted style
+      featureLayer = new FeatureLayer({
+        url: url,
+        renderer: new SimpleRenderer({
+          symbol: new SimpleLineSymbol({ color: [80, 90, 110, 0.6], width: 1 })
+        }),
+        outFields: ["FullName", "FROM_CROSS", "TO_CROSS", "From_L", "To_L", "OBJECTID"]
+      });
+
+      map.add(featureLayer);
+      await featureLayer.load();
+
+      setStatus("success", `✓ Connected — ${featureLayer.title || "Layer loaded"}`);
+      document.getElementById("btnHighlight").disabled = false;
+      document.getElementById("btnConnect").disabled = false;
+
+      // Zoom to layer extent
+      const extent = await featureLayer.queryExtent();
+      if (extent?.extent) view.goTo(extent.extent.expand(1.1));
+
+      // Load street names for autocomplete
+      await loadStreetNames(url);
+
+    } catch(e) {
+      setStatus("error", "Connection failed — check the URL");
+      document.getElementById("btnConnect").disabled = false;
+      console.error(e);
+    }
+  };
+
+  // ─── LOAD STREET NAMES ───────────────────────────────
+  async function loadStreetNames(url) {
+    setStatus("loading", "Loading street names...");
+    try {
+      const query = featureLayer.createQuery();
+      query.where = "FullName IS NOT NULL";
+      query.outFields = ["FullName", "FROM_CROSS", "TO_CROSS"];
+      query.returnDistinctValues = false;
+      query.num = 10000;
+
+      const result = await featureLayer.queryFeatures(query);
+
+      const nameSet = new Set();
+      const crossSet = new Set();
+
+      result.features.forEach(f => {
+        if (f.attributes.FullName)   nameSet.add(f.attributes.FullName.trim());
+        if (f.attributes.FROM_CROSS) f.attributes.FROM_CROSS.split(",").forEach(s => crossSet.add(s.trim()));
+        if (f.attributes.TO_CROSS)   f.attributes.TO_CROSS.split(",").forEach(s => crossSet.add(s.trim()));
+      });
+
+      streetNames    = [...nameSet].sort();
+      allCrossStreets = [...crossSet].sort();
+
+      setStatus("success", `✓ Ready — ${streetNames.length} streets loaded`);
+    } catch(e) {
+      setStatus("error", "Could not load street names");
+      console.error(e);
+    }
+  }
+
+  // ─── HIGHLIGHT LOGIC ─────────────────────────────────
+  window.highlightSegment = async function() {
+    const street = document.getElementById("streetInput").value.trim();
+    const from   = document.getElementById("fromInput").value.trim();
+    const to     = document.getElementById("toInput").value.trim();
+
+    if (!street) { setStatus("error", "Enter a street name"); return; }
+    if (!from && !to) { setStatus("error", "Enter at least one cross street"); return; }
+    if (!featureLayer) { setStatus("error", "Connect a layer first"); return; }
+
+    setStatus("loading", "Querying segments...");
+    document.getElementById("resultsSection").innerHTML = "";
+
+    try {
+      // Step 1: Find the boundary segments to get address range
+      const boundaryWhere = buildBoundaryQuery(street, from, to);
+      const boundaryQuery = featureLayer.createQuery();
+      boundaryQuery.where = boundaryWhere;
+      boundaryQuery.outFields = ["FullName", "FROM_CROSS", "TO_CROSS", "From_L", "To_L", "OBJECTID"];
+      boundaryQuery.returnGeometry = true;
+
+      const boundaryResult = await featureLayer.queryFeatures(boundaryQuery);
+
+      if (boundaryResult.features.length === 0) {
+        setStatus("error", `No segments found for "${street}" at those cross streets`);
+        return;
+      }
+
+      // Get the address range from boundary segments
+      const fromVals = boundaryResult.features.map(f => f.attributes.From_L).filter(Boolean);
+      const toVals   = boundaryResult.features.map(f => f.attributes.To_L).filter(Boolean);
+      const minAddr  = Math.min(...fromVals);
+      const maxAddr  = Math.max(...toVals);
+
+      // Step 2: Get ALL segments in that address range
+      const rangeWhere = `FullName = '${escapeSql(street)}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
+      const rangeQuery = featureLayer.createQuery();
+      rangeQuery.where = rangeWhere;
+      rangeQuery.outFields = ["FullName", "FROM_CROSS", "TO_CROSS", "From_L", "To_L", "OBJECTID"];
+      rangeQuery.returnGeometry = true;
+
+      const rangeResult = await featureLayer.queryFeatures(rangeQuery);
+      const segments = rangeResult.features;
+
+      if (segments.length === 0) {
+        setStatus("error", "No segments found in range");
+        return;
+      }
+
+      // Step 3: Remove old highlight layer, add new one
+      if (highlightLayer) map.remove(highlightLayer);
+
+      const objectIds = segments.map(f => f.attributes.OBJECTID);
+
+      highlightLayer = new FeatureLayer({
+        url: featureLayer.url,
+        definitionExpression: `OBJECTID IN (${objectIds.join(",")})`,
+        renderer: new SimpleRenderer({
+          symbol: new SimpleLineSymbol({
+            color: [245, 200, 66, 1],
+            width: 5,
+            style: "solid"
+          })
+        }),
+        outFields: ["*"]
+      });
+
+      map.add(highlightLayer);
+
+      // Zoom to highlighted segments
+      const extent = segments.reduce((ext, f) => {
+        return ext ? ext.union(f.geometry.extent) : f.geometry.extent;
+      }, null);
+
+      if (extent) view.goTo(extent.expand(2));
+
+      setStatus("success", `✓ ${segments.length} segment${segments.length > 1 ? "s" : ""} highlighted`);
+      renderResults(segments, street, from, to, minAddr, maxAddr);
+
+    } catch(e) {
+      setStatus("error", "Query failed — see console");
+      console.error(e);
+    }
+  };
+
+  function buildBoundaryQuery(street, from, to) {
+    const parts = [`FullName = '${escapeSql(street)}'`];
+    const crossParts = [];
+
+    if (from) {
+      crossParts.push(`FROM_CROSS LIKE '%${escapeSql(from)}%'`);
+      crossParts.push(`TO_CROSS LIKE '%${escapeSql(from)}%'`);
+    }
+    if (to) {
+      crossParts.push(`FROM_CROSS LIKE '%${escapeSql(to)}%'`);
+      crossParts.push(`TO_CROSS LIKE '%${escapeSql(to)}%'`);
+    }
+
+    if (crossParts.length > 0) {
+      parts.push(`(${crossParts.join(" OR ")})`);
+    }
+
+    return parts.join(" AND ");
+  }
+
+  function escapeSql(str) {
+    return str.replace(/'/g, "''");
+  }
+
+  // ─── CLEAR ───────────────────────────────────────────
+  window.clearHighlight = function() {
+    if (highlightLayer) { map.remove(highlightLayer); highlightLayer = null; }
+    document.getElementById("streetInput").value = "";
+    document.getElementById("fromInput").value = "";
+    document.getElementById("toInput").value = "";
+    document.getElementById("resultsSection").innerHTML = "";
+    setStatus("idle", "○ Cleared — ready for new search");
+  };
+
+  // ─── AUTOCOMPLETE ────────────────────────────────────
+  window.onStreetInput = function() {
+    const val = document.getElementById("streetInput").value.toLowerCase();
+    showAutocomplete("streetList", streetNames, val, "streetInput");
+  };
+
+  window.onCrossInput = function(which) {
+    const inputId = which === "from" ? "fromInput" : "toInput";
+    const listId  = which === "from" ? "fromList"  : "toList";
+    const val = document.getElementById(inputId).value.toLowerCase();
+    showAutocomplete(listId, allCrossStreets, val, inputId);
+  };
+
+  function showAutocomplete(listId, items, val, inputId) {
+    const list = document.getElementById(listId);
+    if (!val || val.length < 2) { list.classList.remove("open"); return; }
+
+    const matches = items.filter(i => i.toLowerCase().includes(val)).slice(0, 8);
+    if (matches.length === 0) { list.classList.remove("open"); return; }
+
+    list.innerHTML = matches.map(m =>
+      `<div class="autocomplete-item" onclick="selectItem('${inputId}','${listId}','${m.replace(/'/g,"\\'")}')">
+        ${m}
+      </div>`
+    ).join("");
+    list.classList.add("open");
+  }
+
+  window.selectItem = function(inputId, listId, value) {
+    document.getElementById(inputId).value = value;
+    document.getElementById(listId).classList.remove("open");
+  };
+
+  // Close dropdowns on outside click
+  document.addEventListener("click", e => {
+    ["streetList","fromList","toList"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.contains(e.target)) el.classList.remove("open");
+    });
+  });
+
+  // ─── RENDER RESULTS ──────────────────────────────────
+  function renderResults(segments, street, from, to, minAddr, maxAddr) {
+    const container = document.getElementById("resultsSection");
+    container.innerHTML = `<div class="section-label" style="margin-bottom:10px">Results</div>`;
+
+    const card = document.createElement("div");
+    card.className = "result-card";
+    card.innerHTML = `
+      <div class="result-street">${street}</div>
+      <div class="result-meta">
+        <strong>From:</strong> ${from || "—"}<br>
+        <strong>To:</strong> ${to || "—"}<br>
+        <strong>Address range:</strong> ${minAddr}–${maxAddr}<br>
+        <strong>Segments:</strong> ${segments.length}
+      </div>
+    `;
+    container.appendChild(card);
+
+    // Filter string for copy
+    const filterStr = `FullName = '${street}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
+    const filterCard = document.createElement("div");
+    filterCard.className = "result-card";
+    filterCard.style.borderLeftColor = "var(--accent2)";
+    filterCard.innerHTML = `
+      <div class="result-meta" style="margin-bottom:6px"><strong>ArcGIS Filter String:</strong></div>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);word-break:break-all;line-height:1.6">${filterStr}</div>
+      <button onclick="copyFilter('${filterStr.replace(/'/g,"\\'")}', this)"
+        style="margin-top:8px;background:transparent;border:1px solid var(--border);color:var(--muted);
+               font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:0.06em;
+               text-transform:uppercase;padding:4px 10px;border-radius:3px;cursor:pointer;">
+        Copy Filter
+      </button>
+    `;
+    container.appendChild(filterCard);
+  }
+
+  window.copyFilter = function(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = "Copied!";
+      btn.style.color = "var(--success)";
+      btn.style.borderColor = "var(--success)";
+      setTimeout(() => {
+        btn.textContent = "Copy Filter";
+        btn.style.color = "var(--muted)";
+        btn.style.borderColor = "var(--border)";
+      }, 2000);
+    });
+  };
+
+  // ─── STATUS ──────────────────────────────────────────
+  function setStatus(type, msg) {
+    const el = document.getElementById("statusMsg");
+    el.className = `status-${type}`;
+    el.innerHTML = msg;
+  }
+
+});
+</script>
+
+</body>
+</html>
