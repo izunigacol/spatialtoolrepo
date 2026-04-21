@@ -172,7 +172,7 @@
 
 <header>
   <div class="logo-mark"></div>
-  <h1>Segment Builder <span>// Lynwood, CA</span></h1>
+  <h1>Ilich's CoolSegment Builder <span>// Lynwood, CA</span></h1>
 </header>
 
 <div class="layout">
@@ -480,29 +480,61 @@ function exportGeoJSON() {
 
 // ─── QUERY ───────────────────────────────────────────────────────
 async function querySegments(street, from, to) {
-  const crossParts = [];
-  if (from) {
-    crossParts.push(`FROM_CROSS LIKE '%${esc(from)}%'`);
-    crossParts.push(`TO_CROSS LIKE '%${esc(from)}%'`);
+
+  // Step 1: find the FROM boundary segment (touches 'from' cross street)
+  // Step 2: find the TO boundary segment (touches 'to' cross street)
+  // Then grab everything BETWEEN them using their address values
+
+  async function getBoundarySegs(crossStreet) {
+    const w = `FullName = '${esc(street)}' AND (FROM_CROSS LIKE '%${esc(crossStreet)}%' OR TO_CROSS LIKE '%${esc(crossStreet)}%')`;
+    const r = await fetchJSON(`${layerUrl}/query?where=${encodeURIComponent(w)}&outFields=From_L,To_L&returnGeometry=false&f=geojson`);
+    return r.features || [];
   }
-  if (to) {
-    crossParts.push(`FROM_CROSS LIKE '%${esc(to)}%'`);
-    crossParts.push(`TO_CROSS LIKE '%${esc(to)}%'`);
+
+  let minAddr = null, maxAddr = null;
+
+  if (from && to) {
+    // Both boundaries specified — find each independently
+    const fromSegs = await getBoundarySegs(from);
+    const toSegs   = await getBoundarySegs(to);
+
+    if (!fromSegs.length || !toSegs.length) return { features: [], minAddr: null, maxAddr: null };
+
+    // Use the full address extent of each boundary segment
+    const fromAddrs = fromSegs.flatMap(f => [f.properties?.From_L, f.properties?.To_L]).filter(v => v != null);
+    const toAddrs   = toSegs.flatMap(f => [f.properties?.From_L, f.properties?.To_L]).filter(v => v != null);
+
+    // The block range spans from the lowest addr of the from-boundary
+    // to the highest addr of the to-boundary
+    const fromMin = Math.min(...fromAddrs);
+    const fromMax = Math.max(...fromAddrs);
+    const toMin   = Math.min(...toAddrs);
+    const toMax   = Math.max(...toAddrs);
+
+    // Determine direction: which boundary has lower address numbers
+    if (fromMin <= toMin) {
+      minAddr = fromMin;
+      maxAddr = toMax;
+    } else {
+      minAddr = toMin;
+      maxAddr = fromMax;
+    }
+
+  } else {
+    // Only one boundary — fall back to single-side query
+    const crossStreet = from || to;
+    const segs = await getBoundarySegs(crossStreet);
+    if (!segs.length) return { features: [], minAddr: null, maxAddr: null };
+    const addrs = segs.flatMap(f => [f.properties?.From_L, f.properties?.To_L]).filter(v => v != null);
+    minAddr = Math.min(...addrs);
+    maxAddr = Math.max(...addrs);
   }
 
-  const w1  = `FullName = '${esc(street)}' AND (${crossParts.join(" OR ")})`;
-  const r1  = await fetchJSON(`${layerUrl}/query?where=${encodeURIComponent(w1)}&outFields=From_L,To_L&returnGeometry=false&f=geojson`);
+  if (minAddr === null || maxAddr === null) return { features: [], minAddr: null, maxAddr: null };
 
-  if (!r1.features || r1.features.length === 0) return { features: [], minAddr: null, maxAddr: null };
-
-  const fVals = r1.features.map(f => f.properties?.From_L).filter(v => v != null);
-  const tVals = r1.features.map(f => f.properties?.To_L).filter(v => v != null);
-  if (!fVals.length) return { features: [], minAddr: null, maxAddr: null };
-
-  const minAddr = Math.min(...fVals);
-  const maxAddr = Math.max(...tVals);
-
-  const w2  = `FullName = '${esc(street)}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
+  // Step 3: get all segments strictly within the address range
+  // Use >= minAddr AND <= maxAddr so boundary segs are included but nothing outside
+  const w2 = `FullName = '${esc(street)}' AND From_L >= ${minAddr} AND To_L <= ${maxAddr}`;
   const r2  = await fetchJSON(`${layerUrl}/query?where=${encodeURIComponent(w2)}&outFields=FullName,FROM_CROSS,TO_CROSS,From_L,To_L,OBJECTID&returnGeometry=true&f=geojson`);
 
   return { features: r2.features || [], minAddr, maxAddr };
@@ -575,4 +607,5 @@ function setStatus(type, msg) {
 </script>
 </body>
 </html>
+
 
