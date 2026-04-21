@@ -361,6 +361,18 @@ require([
     ui: { components: ["zoom", "compass"] }
   });
 
+  // Track view readiness — all goTo calls must go through safeGoTo
+  let viewReady = false;
+  view.when(() => { viewReady = true; });
+
+  function safeGoTo(target, options) {
+    if (viewReady) {
+      view.goTo(target, options).catch(() => {});
+    } else {
+      view.when(() => view.goTo(target, options).catch(() => {}));
+    }
+  }
+
   // Graphics layer for collected segments (persistent)
   collectionGraphicsLayer = new GraphicsLayer();
   map.add(collectionGraphicsLayer);
@@ -392,7 +404,7 @@ require([
       await featureLayer.load();
 
       const ext = await featureLayer.queryExtent();
-      if (ext?.extent) view.goTo(ext.extent.expand(1.1));
+      if (ext?.extent) safeGoTo(ext.extent.expand(1.1));
 
       await loadStreetNames();
 
@@ -460,7 +472,7 @@ require([
 
       // Zoom to preview
       const extent = features.reduce((e, f) => e ? e.union(f.geometry.extent) : f.geometry.extent, null);
-      if (extent) view.goTo(extent.expand(2.5));
+      if (extent) safeGoTo(extent.expand(2.5));
 
       lastPreviewData = { features, street, from, to, minAddr, maxAddr };
       document.getElementById("btnAdd").disabled = false;
